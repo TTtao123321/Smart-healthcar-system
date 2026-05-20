@@ -1,0 +1,36 @@
+# === Java / Maven ===
+target/
+*.class
+*.jar
+*.war
+*.log
+*.tmp
+
+# === Node / Frontend ===
+node_modules/
+dist/
+.vite/
+
+# === IDE ===
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+# === macOS ===
+.DS_Store
+Thumbs.db
+
+# === Docker local data ===
+backend/hospital_manege/data/
+
+# === Local Docker Compose override ===
+backend/hospital_manege/docker-compose.override.yml
+
+# === Env files ===
+.env
+.env.local
+
+# === Application local config ===
+application-local.yml

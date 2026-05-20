@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hospital.hms.dao.DeptSubDao">
+
+    <select id="selectConditionByPageCount" parameterType="hashmap" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM medical_dept_sub mds
+        WHERE 1=1
+        <if test="name!=null">
+            AND mds.`name` LIKE CONCAT('%',#{name},'%')
+        </if>
+        <if test="deptId!=null">
+            AND mds.dept_id = #{deptId}
+        </if>
+    </select>
+
+    <select id="selectConditionByPage" parameterType="hashmap" resultType="java.util.HashMap">
+        SELECT
+            deptName,
+            COUNT(CASE WHEN job IN ('主任医师', '副主任医师')THEN 1 END) masterDoctors,
+            subName,
+            COUNT(did) doctors,
+            location,
+            id,
+            COUNT(CASE WHEN job NOT IN ('主任医师', '副主任医师')THEN 1 END) generalDoctors
+        FROM(
+            SELECT mds.id id,mds.`name` subName ,location,md.`name` deptName,d.id did,d.job
+            FROM medical_dept_sub mds
+                LEFT JOIN medical_dept md ON mds.dept_id = md.id
+                LEFT JOIN medical_dept_sub_doctor mdsd ON mds.id = mdsd.dept_sub_id
+                LEFT JOIN doctor d ON mdsd.doctor_id = d.id
+            WHERE 1 = 1
+            <if test="name!=null">
+                AND mds.`name` LIKE CONCAT('%',#{name},'%')
+            </if>
+            <if test="deptId!=null">
+                AND mds.dept_id = #{deptId}
+            </if>
+            )AS dsd
+        GROUP BY id
+        LIMIT #{length} OFFSET #{start}
+    </select>
+
+    <insert id="insert" parameterType="com.hospital.hms.pojo.MedicalDeptSub">
+        INSERT INTO medical_dept_sub
+            (`name`,dept_id,location)
+        VALUES (#{name},#{deptId},#{location})
+    </insert>
+
+    <select id="selectById" parameterType="integer" resultType="java.util.HashMap">
+        SELECT `name`,dept_id deptId,location
+        FROM medical_dept_sub mds
+        WHERE mds.id = #{id}
+    </select>
+
+    <update id="update" parameterType="com.hospital.hms.pojo.MedicalDeptSub">
+        UPDATE medical_dept_sub
+        SET `name` = #{name},dept_id=#{deptId},location=#{location}
+        WHERE id = #{id}
+    </update>
+
+    <select id="selectDoctorCountByIds" resultType="long">
+        SELECT COUNT(*)
+        FROM medical_dept_sub mds
+            JOIN medical_dept_sub_doctor mdsd ON mds.id = mdsd.dept_sub_id
+        WHERE mds.id IN
+        <foreach collection="array" open="(" item="one" separator="," close=")">
+            #{one}
+        </foreach>
+    </select>
+
+    <delete id="deleteByIds">
+        DELETE FROM medical_dept_sub
+        WHERE id IN
+        <foreach collection="array" open="(" item="one" separator="," close=")">
+            #{one}
+        </foreach>
+    </delete>
+</mapper>

@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hospital.hms.dao.DoctorWorkPlanScheduleDao">
+
+    <insert id="insert" parameterType="com.hospital.hms.pojo.DoctorWorkPlanSchedule" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO
+            doctor_work_plan_schedule(work_plan_id,slot,maximum)
+        VALUES (#{workPlanId}, #{slot}, #{maximum})
+    </insert>
+
+    <select id="selectDoctorScheduleByDeptSubIdAndDate" parameterType="map" resultType="java.util.HashMap">
+        SELECT dwps.maximum maximum,
+               d.`name` doctorName,
+               dwps.slot slot,
+               dwp.doctor_id doctorId,
+               dwp.id workPlanId
+        FROM doctor_work_plan dwp
+                 JOIN doctor_work_plan_schedule dwps ON dwp.id = dwps.work_plan_id
+                 JOIN doctor d ON dwp.doctor_id = d.id
+        WHERE dwp.dept_sub_id = #{deptSubId}
+          AND dwp.`date` = STR_TO_DATE('${date}', '%Y-%m-%d')
+    </select>
+
+    <select id="selectScheduleByWorkPlanId" parameterType="integer" resultType="java.util.HashMap">
+        SELECT p.doctor_id AS doctorId,
+               s.id AS scheduleId,
+               s.slot AS slot,
+               s.maximum AS maximum,
+               s.num AS num,
+               DATE_FORMAT(p.date, '%Y-%m-%d') AS date
+        FROM doctor_work_plan p
+            JOIN doctor_work_plan_schedule s ON s.work_plan_id = p.id
+        WHERE p.id = #{workPlanId}
+    </select>
+
+    <update id="updateMaximum" parameterType="map">
+        UPDATE doctor_work_plan
+        SET maximum = #{maximum}
+        WHERE id = #{workPlanId}
+    </update>
+
+    <select id="selectScheduleDate" parameterType="int" resultType="java.lang.String">
+        SELECT date
+        FROM doctor_work_plan
+        WHERE id = #{workPlanId}
+    </select>
+
+    <select id="selectSumNumByIds" parameterType="arraylist" resultType="long">
+        SELECT SUM(num) FROM doctor_work_plan_schedule
+        WHERE id IN
+            <foreach collection="list" open="(" item="one" separator="," close=")">
+                #{one}
+            </foreach>
+    </select>
+
+    <delete id="deleteByIds" parameterType="arraylist">
+        DELETE FROM doctor_work_plan_schedule
+        WHERE id IN
+            <foreach collection="list" open="(" item="one" separator="," close=")">
+                #{one}
+            </foreach>
+    </delete>
+
+    <select id="selectNumByWorkPlanId" parameterType="integer" resultType="long">
+        SELECT num
+        FROM doctor_work_plan
+        WHERE id = #{workPlanId}
+    </select>
+
+    <delete id="deletePlanByWorkPlanId" parameterType="integer">
+        DELETE FROM doctor_work_plan
+        WHERE id = #{workPlanId}
+    </delete>
+
+    <select id="selectScheduleIdsByWorkPlanId" parameterType="integer" resultType="java.lang.Integer">
+        SELECT id
+        FROM doctor_work_plan_schedule
+        WHERE work_plan_id = #{workPlanId}
+    </select>
+
+    <delete id="deleteScheduleByWorkPlanId">
+        DELETE FROM doctor_work_plan_schedule
+        WHERE work_plan_id = #{workPlanId}
+    </delete>
+</mapper>
