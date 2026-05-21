@@ -1,9 +1,32 @@
 # 智慧医院管理系统
 
-医院后台管理系统，覆盖科室管理、医生排班、患者挂号、视频问诊、权限管理等功能。
+医院后台管理系统，覆盖科室管理、医生排班、患者管理、诊费设置、视频问诊等功能。
 
 - **后端**：Spring Boot 2.5.2 + MyBatis + Sa-Token + MySQL + Redis + RabbitMQ + MinIO
 - **前端**：Vue 3 + Vite + Element Plus（管理后台）
+- **患者端**：待重新开发（原有微信小程序端已移除）
+
+## 功能模块
+
+```
+首页
+├── 组织管理
+│   ├── 医疗科室管理
+│   └── 医疗诊室管理
+├── 医护管理
+│   ├── 医生管理
+│   ├── 患者管理        ← 新增
+│   └── 诊费设置
+├── 出诊管理
+│   ├── 门诊日程表
+│   ├── 医生出诊表
+│   └── 视频问诊
+└── 系统设置
+```
+
+### 患者管理
+
+支持按姓名、性别、科室、诊室、就诊医师、就诊状态（待就诊/就诊中/已就诊/复诊中）进行分页查询，可查看患者基本信息及历史就诊记录。
 
 ## 项目结构
 
@@ -12,6 +35,11 @@
 │   └── hospital_manege/        # 后端服务
 │       ├── common/              # 公共模块
 │       ├── hospital_hms_api/    # 主 API 服务
+│       │   └── src/main/java/com/hospital/hms/
+│       │       ├── controller/  # 控制器（含 PatientController）
+│       │       ├── service/     # 服务层
+│       │       ├── dao/         # 数据访问层（含 PatientDao）
+│       │       └── pojo/        # 实体类（含 PatientUserInfo）
 │       ├── pom.xml              # 父 POM（聚合模块）
 │       ├── Dockerfile           # 后端容器构建
 │       ├── docker-compose.yml   # 全服务编排
@@ -19,11 +47,25 @@
 │       └── init-db.sh           # 数据库初始化脚本
 ├── frontend/
 │   └── hospital_manege/        # 前端管理后台
-│       ├── src/                 # Vue 源码
+│       ├── src/
+│       │   ├── views/           # 页面组件（含 patient.vue）
+│       │   └── router/          # 路由配置
 │       ├── Dockerfile           # 前端容器构建
 │       └── nginx.conf           # Nginx 配置
 └── README.md
 ```
+
+## 数据库核心表
+
+### 患者相关（已精简）
+
+| 表名 | 说明 |
+|------|------|
+| `patient_user_info` | 患者信息（就诊卡号、姓名、性别、身份证、手机、密码、疾病史） |
+| `medical_registration` | 门诊挂号记录（关联患者、医生、诊室、就诊状态） |
+| `doctor_consultation_report` | 就诊报告（诊断结果、处方，通过 registration_id 关联挂号单） |
+
+> 已移除的表：`patient_user`（微信账号）、`patient_face_auth`（人脸认证）、`patient_video_diagnosis`（视频问诊记录）、`patient_video_diagnosis_files`
 
 ## 本地运行
 
@@ -107,8 +149,6 @@ MinIO 首次启动后，需通过控制台创建 `hospital` 存储桶：
 - 默认账号：`zhangsan` / `zhangsan`
 
 ### 首次运行快速脚本
-
-如果不想一步步操作，可按顺序执行：
 
 ```bash
 # 1. 基础设施
