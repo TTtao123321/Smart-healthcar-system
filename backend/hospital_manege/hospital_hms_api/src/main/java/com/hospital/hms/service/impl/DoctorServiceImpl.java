@@ -147,4 +147,9 @@ public class DoctorServiceImpl implements DoctorService {
     public ArrayList<HashMap> selectDoctorsBySubId(Integer deptSubId) {
         return doctorDao.selectDoctorsBySubId(deptSubId);
     }
+
+    @Override
+    public ArrayList<HashMap> selectAllDoctorNameAndId() {
+        return doctorDao.selectAllDoctorNameAndId();
+    }
 }

@@ -6,14 +6,11 @@ from 'vue-router'
 import Login from '../views/login.vue'
 import Main from "../views/main.vue"
 import Home from "../views/home.vue"
-import Role from "../views/role.vue"
-import User from "../views/user.vue"
-import Dept from "../views/dept.vue"
-
 import MedicalDept from "../views/medical_dept.vue"
 import MedicalDeptSub from "../views/medical_dept_sub.vue"
 import MedicalDeptSubWorkPlan from "../views/medical_dept_sub_work_plan.vue"
 import Doctor from "../views/doctor.vue"
+import Patient from "../views/patient.vue"
 import DoctorPrice from "../views/doctor_price.vue"
 import DoctorSchedule from "../views/doctor_schedule.vue"
 import VideoDiagnose from "../views/video_diagnose.vue"
@@ -36,33 +33,6 @@ const routes = [{
 				component: Home,
 				meta: {
 					title: '首页',
-				}
-			},
-			{
-				path: "/role",
-				name: "Role",
-				component: Role,
-				meta: {
-					title: "角色管理",
-					isTab: true
-				}
-			},
-			{
-				path: '/user',
-				name: 'User',
-				component: User,
-				meta: {
-					title: '用户管理',
-					isTab: true
-				}
-			},
-			{
-				path: '/dept',
-				name: 'Dept',
-				component: Dept,
-				meta: {
-					title: '部门管理',
-					isTab: true
 				}
 			},
 			{
@@ -89,6 +59,15 @@ const routes = [{
 				component: Doctor,
 				meta: {
 					title: '医生管理',
+					isTab: true
+				}
+			},
+			{
+				path: '/patient',
+				name: 'Patient',
+				component: Patient,
+				meta: {
+					title: '患者管理',
 					isTab: true
 				}
 			},

@@ -63,4 +63,5 @@ public interface DoctorService {
      */
     ArrayList<HashMap> selectDoctorsBySubId(Integer deptSubId);
 
+    ArrayList<HashMap> selectAllDoctorNameAndId();
 }

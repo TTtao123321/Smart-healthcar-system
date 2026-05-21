@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -65,5 +66,10 @@ public class DeptSubServiceImpl implements DeptSubService {
             log.error("科室下有关联诊室，不可删除！");
             throw new GlobalException(OperationMessage.DOCTOR_EXISTS.toString());
         }
+    }
+
+    @Override
+    public ArrayList<HashMap> selectSubByDeptId(Integer deptId) {
+        return deptSubDao.selectSubByDeptId(deptId);
     }
 }

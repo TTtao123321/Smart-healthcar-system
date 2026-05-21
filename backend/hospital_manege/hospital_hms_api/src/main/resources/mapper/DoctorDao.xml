@@ -155,6 +155,10 @@
         WHERE sd.dept_sub_id = #{id} AND d.status = 1
     </select>
 
+    <select id="selectAllDoctorNameAndId" resultType="java.util.HashMap">
+        SELECT id, name FROM doctor WHERE status = 1
+    </select>
+
     <select id="selectDoctorDetailById" parameterType="integer" resultType="java.util.HashMap">
         SELECT
             pid,

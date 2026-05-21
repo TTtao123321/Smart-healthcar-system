@@ -52,14 +52,6 @@
 							<span slot="title">组织管理</span>
 						</template>
 						<el-menu-item
-							index="部门管理"
-							v-if="isAuth(['ROOT', 'DEPT:SELECT'])"
-							@click="$router.push({ name: 'Dept' })"
-						>
-							<SvgIcon name="company_fill" class="icon-svg" />
-							<span slot="title">部门管理</span>
-						</el-menu-item>
-						<el-menu-item
 							index="医疗科室管理"
 							v-if="isAuth(['ROOT', 'MEDICAL_DEPT:SELECT'])"
 							@click="$router.push({ name: 'MedicalDept' })"
@@ -74,22 +66,6 @@
 						>
 							<SvgIcon name="company_fill" class="icon-svg" />
 							<span slot="title">医疗诊室管理</span>
-						</el-menu-item>
-						<el-menu-item
-							index="角色管理"
-							v-if="isAuth(['ROOT', 'ROLE:SELECT'])"
-							@click="$router.push({ name: 'Role' })"
-						>
-							<SvgIcon name="role_fill" class="icon-svg" />
-							<span slot="title">角色管理</span>
-						</el-menu-item>
-						<el-menu-item
-							index="用户管理"
-							v-if="isAuth(['ROOT', 'USER:SELECT'])"
-							@click="$router.push({ name: 'User' })"
-						>
-							<SvgIcon name="user_fill" class="icon-svg" />
-							<span slot="title">用户管理</span>
 						</el-menu-item>
 					</el-sub-menu>
 					<el-sub-menu index="医护管理" :popper-class="'site-sidebar--' + sidebarLayoutSkin + '-popper'">
@@ -106,20 +82,12 @@
 							<span slot="title">医生管理</span>
 						</el-menu-item>
 						<el-menu-item
-							index="护士管理"
-							v-if="isAuth(['ROOT', 'NURSE:SELECT'])"
-							@click="$router.push({ name: 'Nurse' })"
+							index="患者管理"
+							v-if="isAuth(['ROOT', 'PATIENT:SELECT'])"
+							@click="$router.push({ name: 'Patient' })"
 						>
-							<SvgIcon name="nurse_fill" class="icon-svg" />
-							<span slot="title">护士管理</span>
-						</el-menu-item>
-						<el-menu-item
-							index="护工管理"
-							v-if="isAuth(['ROOT', 'NURSING_ASSISTANT:SELECT'])"
-							@click="$router.push({ name: 'NursingAssistant' })"
-						>
-							<SvgIcon name="worker_fill" class="icon-svg" />
-							<span slot="title">护工管理</span>
+							<SvgIcon name="user_fill" class="icon-svg" />
+							<span slot="title">患者管理</span>
 						</el-menu-item>
 						<el-menu-item
 							index="诊费设置"
@@ -226,7 +194,7 @@ export default {
 			siteContentViewHeight: {},
 			height: null,
 			mainTabs: [],
-			mainTabsActiveName: 'dept',
+			mainTabsActiveName: 'Home',
 			menuActiveName: '',
 			updatePasswordVisible: false
 		};

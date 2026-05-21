@@ -14,12 +14,10 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
+import java.util.ArrayList;
 import java.util.HashMap;
 
 @RestController
@@ -87,6 +85,19 @@ public class DeptSubController {
         } catch (Exception e) {
             log.error("更新诊室信息失败,form:{}", form, e);
             return CommonResult.error("修改失败！");
+        }
+    }
+
+    @GetMapping("/selectByDeptId")
+    @Operation(summary = "根据科室ID查询诊室列表")
+    @SaCheckLogin
+    public CommonResult selectByDeptId(Integer deptId) {
+        try {
+            ArrayList<HashMap> list = deptSubService.selectSubByDeptId(deptId);
+            return CommonResult.ok().put("list", list);
+        } catch (Exception e) {
+            log.error("查询诊室列表失败, deptId:{}", deptId, e);
+            return CommonResult.error("查询失败！");
         }
     }
 

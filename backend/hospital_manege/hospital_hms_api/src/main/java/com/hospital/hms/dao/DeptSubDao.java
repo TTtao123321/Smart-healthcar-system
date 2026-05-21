@@ -3,6 +3,7 @@ package com.hospital.hms.dao;
 import com.hospital.hms.pojo.MedicalDeptSub;
 import org.springframework.stereotype.Repository;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
@@ -53,4 +54,6 @@ public interface DeptSubDao {
      * @param ids
      */
     void deleteByIds(Integer[] ids);
+
+    ArrayList<HashMap> selectSubByDeptId(Integer deptId);
 }

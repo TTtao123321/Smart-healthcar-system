@@ -129,19 +129,13 @@ DROP TABLE IF EXISTS `doctor_consultation_report`;
 CREATE TABLE `doctor_consultation_report`  (
   `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '主键',
   `uuid` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '唯一编号',
-  `patient_card_id` int(11) NULL DEFAULT NULL COMMENT '就诊卡ID',
-  `diagnosis` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '诊断结果',
-  `sub_dept_id` int(11) NULL DEFAULT NULL COMMENT '诊室ID',
-  `doctor_id` int(11) NULL DEFAULT NULL COMMENT '医生ID',
   `registration_id` int(11) NULL DEFAULT NULL COMMENT '门诊挂号单ID',
+  `doctor_id` int(11) NULL DEFAULT NULL COMMENT '医生ID',
+  `sub_dept_id` int(11) NULL DEFAULT NULL COMMENT '诊室ID',
+  `diagnosis` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '诊断结果',
   `rp` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '药品处方',
   PRIMARY KEY (`id`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 2 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Dynamic;
-
--- ----------------------------
--- Records of doctor_consultation_report
--- ----------------------------
-INSERT INTO `doctor_consultation_report` VALUES (1, '0FD7398377B0408A9A6DCA84C7D44770', 3, '急性牙髓炎', 2, 18, 1, '[{\"method\":\"1片/次；每日三次；口服\",\"num\":1,\"spec\":\"200mg×24片\",\"name\":\"甲硝唑片\"},{\"method\":\"1片/次；每日两次；口服\",\"num\":1,\"spec\":\"250mg×24片\",\"name\":\"头孢拉定胶囊\"}]');
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for doctor_price
@@ -1067,27 +1061,23 @@ INSERT INTO `medical_dept_sub_doctor` VALUES (31, 3, 31);
 -- ----------------------------
 DROP TABLE IF EXISTS `medical_registration`;
 CREATE TABLE `medical_registration`  (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `patient_card_id` int(11) NULL DEFAULT NULL,
-  `work_plan_id` int(11) NULL DEFAULT NULL,
-  `doctor_schedule_id` int(11) NULL DEFAULT NULL,
-  `doctor_id` int(11) NULL DEFAULT NULL,
-  `dept_sub_id` int(11) NULL DEFAULT NULL,
-  `date` date NULL DEFAULT NULL,
-  `slot` tinyint(4) NULL DEFAULT NULL,
-  `amount` decimal(10, 2) NULL DEFAULT NULL,
-  `out_trade_no` char(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
-  `prepay_id` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
-  `transaction_id` char(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
-  `payment_status` tinyint(4) NULL DEFAULT NULL,
-  `create_time` datetime(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `patient_card_id` int(11) NULL DEFAULT NULL COMMENT '患者就诊卡ID',
+  `work_plan_id` int(11) NULL DEFAULT NULL COMMENT '医生出诊计划ID',
+  `doctor_schedule_id` int(11) NULL DEFAULT NULL COMMENT '医生排班时段ID',
+  `doctor_id` int(11) NULL DEFAULT NULL COMMENT '医生ID',
+  `dept_sub_id` int(11) NULL DEFAULT NULL COMMENT '诊室ID',
+  `date` date NULL DEFAULT NULL COMMENT '就诊日期',
+  `slot` tinyint(4) NULL DEFAULT NULL COMMENT '时间段',
+  `status` tinyint(4) NULL DEFAULT 0 COMMENT '就诊状态: 0=待就诊, 1=就诊中, 2=已就诊, 3=复诊中',
+  `payment_status` tinyint(4) NULL DEFAULT NULL COMMENT '支付状态',
+  `create_time` datetime(0) NULL DEFAULT CURRENT_TIMESTAMP(0) COMMENT '创建时间',
   PRIMARY KEY (`id`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 21 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Records of medical_registration
 -- ----------------------------
-INSERT INTO `medical_registration` VALUES (20, 14, 187, 794, 19, 1, '2025-04-10', 1, 30.00, '65F346D21D7D4AE9BDF2161CB1433702', 'wx201410272009395522657a690389285100', NULL, 2, '2025-04-09 11:35:55');
 
 -- ----------------------------
 -- Table structure for module
@@ -1117,119 +1107,24 @@ INSERT INTO `module` VALUES (10, 'AMECT', '科室管理');
 INSERT INTO `module` VALUES (11, 'REIM', '医生管理');
 
 -- ----------------------------
--- Table structure for patient_face_auth
--- ----------------------------
-DROP TABLE IF EXISTS `patient_face_auth`;
-CREATE TABLE `patient_face_auth`  (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `patient_card_id` int(11) NULL DEFAULT NULL,
-  `date` date NULL DEFAULT NULL,
-  PRIMARY KEY (`id`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 4 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Dynamic;
-
--- ----------------------------
--- Records of patient_face_auth
--- ----------------------------
-INSERT INTO `patient_face_auth` VALUES (3, 14, '2025-03-24');
-
--- ----------------------------
--- Table structure for patient_user
--- ----------------------------
-DROP TABLE IF EXISTS `patient_user`;
-CREATE TABLE `patient_user`  (
-  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '主键',
-  `open_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '微信唯一授权字符串',
-  `nickname` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '微信昵称',
-  `photo` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '微信头像',
-  `sex` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '性别',
-  `status` tinyint(4) NULL DEFAULT NULL COMMENT '状态：1代表正常，2代表禁用',
-  `create_time` timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0) COMMENT '创建日期',
-  PRIMARY KEY (`id`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 13 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Dynamic;
-
--- ----------------------------
--- Records of patient_user
--- ----------------------------
-INSERT INTO `patient_user` VALUES (3, 'ociqy6_5hhmjVvMdCB5zq0PXTrdA', '海风', 'https://thirdwx.qlogo.cn/mmopen/vi_32/PiajxSqBRaEIFyVQYGJ8G1tgzm3mKZHFKSb1arL86xaoktNFEibiceoPGB3OBBIpOxzG6rB3eVjnaNLcrzJ0tc7ApLXyqv6n2Zia2Wa2lHibPYBIC5UkpV2KHtg/132', '男', 1, '2024-12-30 12:13:54');
-INSERT INTO `patient_user` VALUES (6, 'oLdPw5PtSKCPJRLbYWeHLm8PJ2fE', '微信用户', 'https://thirdwx.qlogo.cn/mmopen/vi_32/POgEwh4mIHO4nibH0KlMECNjjGxQUq24ZEaGT4poC6icRiccVGKSyXwibcPq4BWmiaIGuG1icwxaQX6grC9VemZoJ8rg/132', '男', 1, '2024-06-24 11:28:40');
-INSERT INTO `patient_user` VALUES (7, 'o56Mf7VAAGJdK7gZRIoZXrdwjrFk', '2003.秋', 'https://thirdwx.qlogo.cn/mmopen/vi_32/PiajxSqBRaEKlDFzNk8WjzU9tmYDewSnGXqn3gHiaA3mMSmRTBzrtNVmSiah1uofyOrGiaCNST6ToddNrzs0KA2sjOicEzlVY8via9KsAdlNA3nic3icR2cwtIicX5Q/132', '男', 1, '2024-07-02 16:27:00');
-INSERT INTO `patient_user` VALUES (9, 'opowR7fOSJ64x4d_J8Y6saPu6APg', '比屋教育_王老师', 'https://thirdwx.qlogo.cn/mmopen/vi_32/zvvtvGbucBurxNdiaIiapwrmk4cJ43uefHJvciaicMwlL3u3AHSlVqUFQ5aPFlMxqkjBQ0jQBBHMZoHH8b24AYu9Az7CP6Cias07Y9Kaj6qcpUZg/132', '男', 1, '2025-01-18 14:54:01');
-INSERT INTO `patient_user` VALUES (10, 'oqC4p5GvSfrvSkt2Ug5WmzC2QfKM', '随缘', 'https://thirdwx.qlogo.cn/mmopen/vi_32/AHukDxPf2pBGf12DZCvrPMjRxe3d5hoTG0IuD9u66ngFNgyFKPibt9CH63LUGW1Yz5VK8uNlsvkfHzzYad1HjZGJCG5mz6E5ps3jE3tjmtuo/132', '男', 1, '2025-02-12 15:01:38');
-INSERT INTO `patient_user` VALUES (11, 'ojYyd6_ZY526GAOM5twEYnEmwI-I', '.', 'https://thirdwx.qlogo.cn/mmopen/vi_32/Il4ibIxLp13P3OylGQowajEZ6p8xpYV3E5Dw0WK7E4uaeh1UpuXnPQDu21h6Mo6AYZ9b579DYBhib059mszEU3e3eEdsibo2ibS4nTOZhdgDjvk/132', '男', 1, '2025-04-11 11:22:46');
-INSERT INTO `patient_user` VALUES (12, 'orkAE7Pe2guuO7Q78o8QhsX69CqY', '微信用户', 'https://thirdwx.qlogo.cn/mmopen/vi_32/POgEwh4mIHO4nibH0KlMECNjjGxQUq24ZEaGT4poC6icRiccVGKSyXwibcPq4BWmiaIGuG1icwxaQX6grC9VemZoJ8rg/132', '男', 1, '2025-04-12 13:56:59');
-
--- ----------------------------
 -- Table structure for patient_user_info
 -- ----------------------------
 DROP TABLE IF EXISTS `patient_user_info`;
 CREATE TABLE `patient_user_info`  (
   `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '主键',
-  `user_id` int(11) NULL DEFAULT NULL COMMENT '患者ID',
   `uuid` char(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '患者就诊卡编号',
   `name` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '姓名',
   `sex` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '性别',
   `pid` varchar(18) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '身份证号',
   `tel` varchar(11) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '手机号码',
   `birthday` date NULL DEFAULT NULL COMMENT '出生日期',
+  `password` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '登录密码',
   `medical_history` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '疾病史',
-  `insurance_type` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '保险类型',
-  `exist_face_model` tinyint(1) NULL DEFAULT NULL COMMENT '是否录入面部信息',
   PRIMARY KEY (`id`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 17 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Records of patient_user_info
--- ----------------------------
-INSERT INTO `patient_user_info` VALUES (4, 6, '6424ccffb77149239531726a6067b3cb', '阿狸', '男', '522424200106224854', '12233104410', '1923-01-01', '[\"无\"]', '社会基本医疗保险', 0);
-INSERT INTO `patient_user_info` VALUES (7, 4, 'e285ec6eed3a49069c5efd7e67062cd4', '王梦凡', '女', '130622199204132023', '15530260413', '1900-01-01', '[\"高血压\"]', '社会基本医疗保险', 0);
-INSERT INTO `patient_user_info` VALUES (9, 5, '8306e145c1a444838a2824ae6a2d3f51', '张三四', '女', '430512198908131367', '15002502050', '1981-01-01', '[\"糖尿病\",\"脑出血\",\"脑中风\"]', '社会基本医疗保险', 0);
-INSERT INTO `patient_user_info` VALUES (13, 10, 'f9f05639398443a5ad0a88a1a99edbc9', '张三', '男', '430512198908131367', '15002502050', '1903-01-01', '[\"脑中风\"]', '新型农村合作医疗', 0);
-INSERT INTO `patient_user_info` VALUES (14, 3, '246790c306394374ae420d2571c993fb', '张三', '男', '430512198908131367', '15002502050', '1995-01-01', '[\"脑出血\",\"肾病\"]', '社会基本医疗保险', 1);
-INSERT INTO `patient_user_info` VALUES (15, 11, 'd74f922ecc4b4558bbf7983d89633977', '馬光連', '男', '371481200210106059', '18853417234', '1900-01-01', '[\"无\"]', '无', 0);
-INSERT INTO `patient_user_info` VALUES (16, 12, '5823fe9742954735a8fb732f83a2a9b9', '杀杀杀', '男', '148556202509110158', '17782107439', '1903-02-01', '[\"糖尿病\",\"高血压\",\"脑出血\",\"脑中风\"]', '社会基本医疗保险', 0);
-
--- ----------------------------
--- Table structure for patient_video_diagnosis
--- ----------------------------
-DROP TABLE IF EXISTS `patient_video_diagnosis`;
-CREATE TABLE `patient_video_diagnosis`  (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `patient_card_id` int(11) NULL DEFAULT NULL,
-  `doctor_id` int(11) NULL DEFAULT NULL,
-  `out_trade_no` char(32) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL,
-  `amount` decimal(10, 2) NULL DEFAULT NULL,
-  `payment_status` tinyint(4) NULL DEFAULT NULL,
-  `prepay_id` char(64) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL,
-  `transaction_id` char(32) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL,
-  `expect_start` date NULL DEFAULT NULL,
-  `expect_end` date NULL DEFAULT NULL,
-  `real_start` date NULL DEFAULT NULL,
-  `real_end` date NULL DEFAULT NULL,
-  `status` tinyint(4) NULL DEFAULT NULL,
-  `create_time` date NULL DEFAULT NULL,
-  PRIMARY KEY (`id`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 2 CHARACTER SET = utf8 COLLATE = utf8_general_ci ROW_FORMAT = Dynamic;
-
--- ----------------------------
--- Records of patient_video_diagnosis
--- ----------------------------
-INSERT INTO `patient_video_diagnosis` VALUES (1, 14, 1, 'BF9712DA0E824BAC91D07EEBF2651CDE', 100.00, NULL, 'wx201410272009395522657a690389285100', NULL, '2025-03-21', '2025-03-21', NULL, NULL, 1, '2025-03-21');
-
--- ----------------------------
--- Table structure for patient_video_diagnosis_files
--- ----------------------------
-DROP TABLE IF EXISTS `patient_video_diagnosis_files`;
-CREATE TABLE `patient_video_diagnosis_files`  (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `video_diagnose_id` int(11) NULL DEFAULT NULL,
-  `filename` varchar(100) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL,
-  `path` varchar(300) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL,
-  `create_time` datetime(0) NULL DEFAULT NULL,
-  PRIMARY KEY (`id`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8 COLLATE = utf8_general_ci ROW_FORMAT = Dynamic;
-
--- ----------------------------
--- Records of patient_video_diagnosis_files
 -- ----------------------------
 
 -- ----------------------------

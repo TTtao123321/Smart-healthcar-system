@@ -68,4 +68,6 @@ public interface DoctorDao {
      * @return
      */
     HashMap selectDoctorDetailById(Integer id);
+
+    ArrayList<HashMap> selectAllDoctorNameAndId();
 }

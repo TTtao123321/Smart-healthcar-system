@@ -18,6 +18,10 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+
 import javax.validation.Valid;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -152,6 +156,19 @@ public class DoctorController {
         } catch (Exception e) {
             log.error("查找医生失败,form:{}", form, e);
             return CommonResult.error("查找失败！");
+        }
+    }
+
+    @GetMapping("/selectAllDoctorNameAndId")
+    @Operation(summary = "获取所有在职医生姓名和ID")
+    @SaCheckLogin
+    public CommonResult selectAllDoctorNameAndId() {
+        try {
+            ArrayList<HashMap> list = doctorService.selectAllDoctorNameAndId();
+            return CommonResult.ok().put("list", list);
+        } catch (Exception e) {
+            log.error("查询医生列表失败", e);
+            return CommonResult.error("查询失败！");
         }
     }
 }

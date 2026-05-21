@@ -71,6 +71,12 @@
         </foreach>
     </select>
 
+    <select id="selectSubByDeptId" parameterType="integer" resultType="java.util.HashMap">
+        SELECT id, name
+        FROM medical_dept_sub
+        WHERE dept_id = #{deptId}
+    </select>
+
     <delete id="deleteByIds">
         DELETE FROM medical_dept_sub
         WHERE id IN
