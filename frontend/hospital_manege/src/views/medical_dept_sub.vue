@@ -1,5 +1,5 @@
 <template>
-    <div v-if="isAuth(['ROOT', 'MEDICAL_DEPT_SUB:SELECT'])">
+    <div v-if="isAuth(['ROOT', 'ORG:SELECT'])">
         <el-form :inline="true" :model="dataForm" :rules="dataRule" ref="dataForm">
             <el-form-item prop="name">
                 <el-input v-model="dataForm.name" placeholder="诊室名称" class="input" clearable="clearable" />
@@ -11,12 +11,12 @@
             </el-form-item>
             <el-form-item>
                 <el-button type="primary" @click="searchHandle()">查询</el-button>
-                <el-button type="primary" :disabled="!isAuth(['ROOT', 'MEDICAL_DEPT_SUB:INSERT'])" @click="addHandle()">
+                <el-button type="primary" v-if="isAuth(['ROOT', 'ORG:INSERT'])" @click="addHandle()">
                     新增
                 </el-button>
                 <el-button
                     type="danger"
-                    :disabled="!isAuth(['ROOT', 'MEDICAL_DEPT_SUB:DELETE'])"
+                    v-if="isAuth(['ROOT', 'ORG:DELETE'])"
                     @click="deleteHandle()"
                 >
                     批量删除
@@ -87,14 +87,15 @@
                 <template #default="scope">
                     <el-button
                         type="text"
-                        :disabled="!isAuth(['ROOT', 'MEDICAL_DEPT_SUB:UPDATE'])"
+                        v-if="isAuth(['ROOT', 'ORG:UPDATE'])"
                         @click="updateHandle(scope.row.id)"
                     >
                         修改
                     </el-button>
                     <el-button
                         type="text"
-                        :disabled="!isAuth(['ROOT', 'MEDICAL_DEPT_SUB:DELETE']) || scope.row.emps > 0"
+                        v-if="isAuth(['ROOT', 'ORG:DELETE'])"
+                        :disabled="scope.row.emps > 0"
                         @click="deleteHandle(scope.row.id)"
                     >
                         删除

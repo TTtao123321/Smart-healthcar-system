@@ -1,7 +1,7 @@
 <template>
 	<el-dialog
 		:title="!dataForm.id ? '新增' : '修改'"
-		v-if="isAuth(['ROOT', 'MEDICAL_DEPT:INSERT', 'MEDICAL_DEPT:UPDATE'])"
+		v-if="isAuth(['ROOT', 'ORG:INSERT', 'ORG:UPDATE'])"
 		:close-on-click-modal="false"
 		v-model="visible"
 		width="450px"

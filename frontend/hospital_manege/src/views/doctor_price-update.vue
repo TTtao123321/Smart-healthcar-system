@@ -1,7 +1,7 @@
 <template>
 	<el-dialog
 		title="修改"
-		v-if="isAuth(['ROOT', 'DOCTOR_PRICE:UPDATE'])"
+		v-if="isAuth(['ROOT', 'MEDICAL:UPDATE'])"
 		:close-on-click-modal="false"
 		v-model="visible"
 		width="450px"

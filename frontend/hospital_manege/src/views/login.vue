@@ -34,7 +34,7 @@
                   ></el-input>
                 </div>
                 <div class="row">
-                  <el-button type="primary" class="btn" @click="login">登陆系统</el-button>
+                  <el-button type="primary" class="btn" @click="login">登录系统</el-button>
                 </div>
                 <!--                                <div class="row"><a class="link" @click="changeMode">短信登陆</a></div>-->
               </div>
@@ -92,6 +92,8 @@ export default {
             let token = resp.token;
             localStorage.setItem('permissions', permissions);
             localStorage.setItem('token', token);
+            localStorage.setItem('name', resp.name || '');
+            localStorage.setItem('roleNames', JSON.stringify(resp.roleNames || []));
             router.push({ name: 'Home' });
           } else {
             that.$message({

@@ -20,10 +20,9 @@
                 <el-button
                     size="medium"
                     type="primary"
+                    v-if="isAuth(['ROOT', 'SCHEDULE:INSERT'])"
                     @click="addHandle()"
-                    :disabled="
-                        !isAuth(['ROOT', 'SCHEDULE:INSERT']) || dataForm.deptSubId == null || dataForm.date == null
-                    "
+                    :disabled="dataForm.deptSubId == null || dataForm.date == null"
                 >
                     添加
                 </el-button>
@@ -54,7 +53,7 @@
                     <el-button
                         type="primary"
                         size="small"
-                        :disabled="!isAuth(['ROOT', 'SCHEDULE:UPDATE'])"
+                        v-if="isAuth(['ROOT', 'SCHEDULE:UPDATE'])"
                         link
                         @click="updateHandle(doctor.workPlanId)"
                     >
@@ -63,7 +62,7 @@
                     <el-button
                         type="danger"
                         size="small"
-                        :disabled="!isAuth(['ROOT', 'SCHEDULE:DELETE'])"
+                        v-if="isAuth(['ROOT', 'SCHEDULE:DELETE'])"
                         link
                         @click="deleteHandle(doctor.workPlanId)"
                     >

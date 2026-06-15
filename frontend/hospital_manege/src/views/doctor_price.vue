@@ -1,5 +1,5 @@
 <template>
-	<div v-if="isAuth(['ROOT', 'DOCTOR_PRICE:SELECT'])">
+	<div v-if="isAuth(['ROOT', 'MEDICAL:SELECT'])">
 		<el-form :inline="true" :model="dataForm" :rules="dataRule" ref="dataForm">
 			<el-form-item prop="name">
 				<el-input v-model="dataForm.name" placeholder="姓名" class="input" clearable="clearable" />
@@ -92,7 +92,7 @@
 				<template #default="scope">
 					<el-button
 						type="text"
-						:disabled="!isAuth(['ROOT', 'DOCTOR_PRICE:UPDATE'])"
+						v-if="isAuth(['ROOT', 'MEDICAL:UPDATE'])"
 						@click="updateHandle(scope.row.doctorId, scope.row.price_1, scope.row.price_2, scope.row.job)"
 					>
 						调整价格

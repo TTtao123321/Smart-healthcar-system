@@ -14,7 +14,11 @@ import Patient from "../views/patient.vue"
 import DoctorPrice from "../views/doctor_price.vue"
 import DoctorSchedule from "../views/doctor_schedule.vue"
 import VideoDiagnose from "../views/video_diagnose.vue"
+import MedicalAssistant from "../views/medical_assistant.vue"
 import NotFound from "../views/404.vue"
+import Role from "../views/role.vue"
+import UserManage from "../views/user_manage.vue"
+import Permission from "../views/permission.vue"
 
 
 
@@ -108,8 +112,42 @@ const routes = [{
 					isTab: true
 				}
 			},
-
-
+			{
+				path: '/medical_assistant',
+				name: 'MedicalAssistant',
+				component: MedicalAssistant,
+				meta: {
+					title: '医疗助手',
+					isTab: true
+				}
+			},
+			{
+				path: "/role",
+				name: "Role",
+				component: Role,
+				meta: {
+					title: "角色管理",
+					isTab: true
+				}
+			},
+			{
+				path: "/user_manage",
+				name: "UserManage",
+				component: UserManage,
+				meta: {
+					title: "用户管理",
+					isTab: true
+				}
+			},
+			{
+				path: "/permission",
+				name: "Permission",
+				component: Permission,
+				meta: {
+					title: "权限管理",
+					isTab: true
+				}
+			}
 		]
 	},
 	{

@@ -8,8 +8,8 @@
 		<nav class="site-navbar" :class="'site-navbar--' + navbarLayoutType">
 			<div class="site-navbar__header">
 				<h1 class="site-navbar__brand">
-					<a class="site-navbar__brand-lg">飞马市三医院_在线医疗问诊平台开发</a>
-					<a class="site-navbar__brand-mini">医院</a>
+					<a class="site-navbar__brand-lg">飞码医疗管理平台</a>
+					<a class="site-navbar__brand-mini">飞码</a>
 				</h1>
 			</div>
 			<div class="navbar-container" :class="'navbar-container--' + navbarLayoutType">
@@ -19,7 +19,7 @@
 						<el-badge value="0"><SvgIcon name="duanxin" class="icon-svg duanxin-svg" /></el-badge>
 					</div>
 					<el-dropdown>
-						<span class="el-dropdown-link">{{ name }}超级管理员</span>
+						<span class="el-dropdown-link">{{ name || '用户' }}</span>
 						<template #dropdown>
 							<el-dropdown-menu>
 								<el-dropdown-item @click="updatePasswordHandle()">修改密码</el-dropdown-item>
@@ -53,7 +53,7 @@
 						</template>
 						<el-menu-item
 							index="医疗科室管理"
-							v-if="isAuth(['ROOT', 'MEDICAL_DEPT:SELECT'])"
+							v-if="isAuth(['ROOT', 'ORG:SELECT'])"
 							@click="$router.push({ name: 'MedicalDept' })"
 						>
 							<SvgIcon name="company_fill" class="icon-svg" />
@@ -61,7 +61,7 @@
 						</el-menu-item>
 						<el-menu-item
 							index="医疗诊室管理"
-							v-if="isAuth(['ROOT', 'MEDICAL_DEPT_SUB:SELECT'])"
+							v-if="isAuth(['ROOT', 'ORG:SELECT'])"
 							@click="$router.push({ name: 'MedicalDeptSub' })"
 						>
 							<SvgIcon name="company_fill" class="icon-svg" />
@@ -75,7 +75,7 @@
 						</template>
 						<el-menu-item
 							index="医生管理"
-							v-if="isAuth(['ROOT', 'DOCTOR:SELECT'])"
+							v-if="isAuth(['ROOT', 'MEDICAL:SELECT'])"
 							@click="$router.push({ name: 'Doctor' })"
 						>
 							<SvgIcon name="doctor_fill" class="icon-svg" />
@@ -83,7 +83,7 @@
 						</el-menu-item>
 						<el-menu-item
 							index="患者管理"
-							v-if="isAuth(['ROOT', 'PATIENT:SELECT'])"
+							v-if="isAuth(['ROOT', 'MEDICAL:SELECT'])"
 							@click="$router.push({ name: 'Patient' })"
 						>
 							<SvgIcon name="user_fill" class="icon-svg" />
@@ -91,7 +91,7 @@
 						</el-menu-item>
 						<el-menu-item
 							index="诊费设置"
-							v-if="isAuth(['ROOT', 'DOCTOR_PRICE:SELECT'])"
+							v-if="isAuth(['ROOT', 'MEDICAL:SELECT'])"
 							@click="$router.push({ name: 'DoctorPrice' })"
 						>
 							<SvgIcon name="money_fill" class="icon-svg" />
@@ -124,25 +124,32 @@
 							<SvgIcon name="clock_fill" class="icon-svg" />
 							<span slot="title">医生出诊表</span>
 						</el-menu-item>
-						<el-menu-item
-							index="视频问诊"
-							@click="$router.push({ name: 'VideoDiagnose' })"
-							v-if="isAuth(['ROOT','VIDEO_DIAGNOSE:SELECT'])"
-						>
-							<SvgIcon name="camera_fill" class="icon-svg" />
-							<span slot="title">视频问诊</span>
-						</el-menu-item>
 					</el-sub-menu>
-					<el-sub-menu
-						index="系统设置"
-						:popper-class="'site-sidebar--' + sidebarLayoutSkin + '-popper'"
-						v-if="isAuth(['ROOT', 'SYSTEM:SELECT'])"
-					>
+					<el-sub-menu index="系统管理" :popper-class="'site-sidebar--' + sidebarLayoutSkin + '-popper'" v-if="isAuth(['ROOT'])">
 						<template #title>
 							<SvgIcon name="system_fill" class="icon-svg" />
-							<span slot="title">系统设置</span>
+							<span slot="title">系统管理</span>
 						</template>
+						<el-menu-item index="角色管理" v-if="isAuth(['ROOT','ROLE:SELECT'])" @click="$router.push({ name: 'Role' })">
+							<SvgIcon name="trust_fill" class="icon-svg" />
+							<span slot="title">角色管理</span>
+						</el-menu-item>
+						<el-menu-item index="用户管理" v-if="isAuth(['ROOT','USER:SELECT'])" @click="$router.push({ name: 'UserManage' })">
+							<SvgIcon name="users_fill" class="icon-svg" />
+							<span slot="title">用户管理</span>
+						</el-menu-item>
+						<el-menu-item index="权限管理" v-if="isAuth(['ROOT','PERMISSION:SELECT'])" @click="$router.push({ name: 'Permission' })">
+							<SvgIcon name="system_fill" class="icon-svg" />
+							<span slot="title">权限管理</span>
+						</el-menu-item>
 					</el-sub-menu>
+					<el-menu-item
+						index="医疗助手"
+						@click="$router.push({ name: 'MedicalAssistant' })"
+					>
+						<SvgIcon name="doctor_fill" class="icon-svg" />
+						<span slot="title">医疗助手</span>
+					</el-menu-item>
 				</el-menu>
 			</div>
 		</aside>
@@ -201,6 +208,7 @@ export default {
 	},
 	created() {
 		let that = this;
+		that.name = localStorage.getItem('name') || '';
 		that.routeHandle(that.$route);
 		that.$options.sockets.onopen = function(resp) {
 			//发送心跳检测，避免超时后服务端切断连接

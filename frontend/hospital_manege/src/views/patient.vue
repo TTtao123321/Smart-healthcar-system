@@ -1,5 +1,5 @@
 <template>
-  <div v-if="isAuth(['ROOT', 'PATIENT:SELECT'])">
+  <div v-if="isAuth(['ROOT', 'MEDICAL:SELECT'])">
     <el-form :inline="true" :model="dataForm" ref="dataForm">
       <el-form-item prop="name">
         <el-input

@@ -23,7 +23,7 @@
 			</el-form-item>
 			<el-form-item>
 				<el-button type="primary" @click="searchHandle()">查询</el-button>
-				<el-button type="primary" :disabled="!isAuth(['ROOT', 'SCHEDULE:INSERT'])" @click="addHandle()">
+				<el-button type="primary" v-if="isAuth(['ROOT', 'SCHEDULE:INSERT'])" @click="addHandle()">
 					新增
 				</el-button>
 			</el-form-item>

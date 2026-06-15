@@ -1,5 +1,5 @@
 <template>
-    <div v-if="isAuth(['ROOT', 'DOCTOR:SELECT'])">
+    <div v-if="isAuth(['ROOT', 'MEDICAL:SELECT'])">
         <!-- 查询条件 -->
         <el-form :inline="true" :model="dataForm" :rules="dataRule" ref="dataForm">
             <el-form-item prop="name">
@@ -54,7 +54,7 @@
                 <el-button
                     size="medium"
                     type="primary"
-                    :disabled="!isAuth(['ROOT', 'DOCTOR:INSERT'])"
+                    v-if="isAuth(['ROOT', 'MEDICAL:INSERT'])"
                     @click="addHandle()"
                 >
                     新增
@@ -62,7 +62,7 @@
                 <el-button
                     size="medium"
                     type="danger"
-                    :disabled="!isAuth(['ROOT', 'DOCTOR:DELETE'])"
+                    v-if="isAuth(['ROOT', 'MEDICAL:DELETE'])"
                     @click="deleteHandle()"
                 >
                     批量删除
@@ -198,7 +198,7 @@
                     <el-button
                         type="text"
                         size="medium"
-                        :disabled="!isAuth(['ROOT', 'DOCTOR:UPDATE'])"
+                        v-if="isAuth(['ROOT', 'MEDICAL:UPDATE'])"
                         @click="updateHandle(scope.row.id)"
                     >
                         修改
@@ -206,7 +206,7 @@
                     <el-button
                         type="text"
                         size="medium"
-                        :disabled="!isAuth(['ROOT', 'DOCTOR:DELETE'])"
+                        v-if="isAuth(['ROOT', 'MEDICAL:DELETE'])"
                         @click="deleteHandle(scope.row.id)"
                     >
                         删除
