@@ -35,7 +35,7 @@ public class DoctorWorkPlanScheduleController {
     @PostMapping("/selectDoctorScheduleByDeptSubIdAndDate")
     @Operation(summary = "查询医生出诊计划")
     @SaCheckLogin
-    @SaCheckPermission(value = {"ROOT", "DOCTOR_WORK_PLAN_SCHEDULE:SELECT"}, mode = SaMode.OR)
+    @SaCheckPermission(value = {"ROOT", "SCHEDULE:SELECT"}, mode = SaMode.OR)
     public CommonResult selectDoctorScheduleByDeptSubIdAndDate(@RequestBody @Valid SelectScheduleByDeptSubForm form){
         try {
             Map<String, Object> map = BeanUtil.beanToMap(form);
@@ -50,7 +50,7 @@ public class DoctorWorkPlanScheduleController {
     @PostMapping("/selectScheduleByWorkPlanId")
     @Operation(summary = "查询指定医生出诊计划")
     @SaCheckLogin
-    @SaCheckPermission(value = {"ROOT", "DOCTOR_WORK_PLAN_SCHEDULE:SELECT"}, mode = SaMode.OR)
+    @SaCheckPermission(value = {"ROOT", "SCHEDULE:SELECT"}, mode = SaMode.OR)
     public CommonResult selectScheduleByWorkPlanId(@RequestBody @Valid SelectScheduleByWorkPlanIdForm form){
         try {
             Integer workPlanId = form.getWorkPlanId();
@@ -65,7 +65,7 @@ public class DoctorWorkPlanScheduleController {
     @PostMapping("/updateSchedule")
     @Operation(summary = "修改指定医生出诊计划")
     @SaCheckLogin
-    @SaCheckPermission(value = {"ROOT", "DOCTOR_WORK_PLAN_SCHEDULE:UPDATE"}, mode = SaMode.OR)
+    @SaCheckPermission(value = {"ROOT", "SCHEDULE:UPDATE"}, mode = SaMode.OR)
     public CommonResult updateSchedule(@RequestBody @Valid UpdateDoctorScheduleForm form){
         try {
             Map<String, Object> map = BeanUtil.beanToMap(form);
@@ -80,7 +80,7 @@ public class DoctorWorkPlanScheduleController {
     @PostMapping("/deleteWorkPlan")
     @Operation(summary = "删除指定医生出诊计划")
     @SaCheckLogin
-    @SaCheckPermission(value = {"ROOT", "DOCTOR_WORK_PLAN_SCHEDULE:DELETE"}, mode = SaMode.OR)
+    @SaCheckPermission(value = {"ROOT", "SCHEDULE:DELETE"}, mode = SaMode.OR)
     public CommonResult deleteWorkPlan(@RequestBody @Valid DeleteWorkPlanForm form){
         try {
             Integer workPlanId = form.getWorkPlanId();

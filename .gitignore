@@ -34,3 +34,10 @@ backend/hospital_manege/docker-compose.override.yml
 
 # === Application local config ===
 application-local.yml
+
+# === Crash dumps ===
+*.dump
+
+# === Agent tooling ===
+.agents/
+skills-lock.json

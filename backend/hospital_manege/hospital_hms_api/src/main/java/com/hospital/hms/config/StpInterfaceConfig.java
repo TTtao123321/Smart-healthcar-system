@@ -1,6 +1,7 @@
 package com.hospital.hms.config;
 
 import cn.dev33.satoken.stp.StpInterface;
+import com.hospital.hms.dao.RoleDao;
 import com.hospital.hms.dao.UserDao;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -13,6 +14,9 @@ import java.util.Set;
 public class StpInterfaceConfig implements StpInterface {
     @Autowired
     private UserDao userDao;
+
+    @Autowired
+    private RoleDao roleDao;
 
     /**
      * 返回一个用户所拥有的权限集合
@@ -27,10 +31,12 @@ public class StpInterfaceConfig implements StpInterface {
     }
 
     /**
-     * 暂时不用
-     * */
+     * 返回一个用户所拥有的角色集合
+     */
     @Override
     public List<String> getRoleList(Object loginId, String loginKey) {
-        return null;
+        int userId = Integer.parseInt(loginId.toString());
+        List<String> roleNames = roleDao.selectRoleNamesByUserId(userId);
+        return roleNames;
     }
 }

@@ -1,6 +1,8 @@
 package com.hospital.hms.controller;
 
 import cn.dev33.satoken.annotation.SaCheckLogin;
+import cn.dev33.satoken.annotation.SaCheckPermission;
+import cn.dev33.satoken.annotation.SaMode;
 import cn.hutool.core.bean.BeanUtil;
 import com.hospital.common.utils.PageUtils;
 import com.hospital.hms.common.CommonResult;
@@ -29,6 +31,7 @@ public class PatientController {
     @PostMapping("/selectByPage")
     @Operation(summary = "分页查询患者就诊记录")
     @SaCheckLogin
+    @SaCheckPermission(value = {"ROOT", "MEDICAL:SELECT"}, mode = SaMode.OR)
     public CommonResult selectByPage(@RequestBody @Valid SelectPatientByPageForm form) {
         try {
             Map<String, Object> map = BeanUtil.beanToMap(form);
@@ -43,6 +46,7 @@ public class PatientController {
     @PostMapping("/selectDetail")
     @Operation(summary = "查询患者详情和就诊记录")
     @SaCheckLogin
+    @SaCheckPermission(value = {"ROOT", "MEDICAL:SELECT"}, mode = SaMode.OR)
     public CommonResult selectDetail(@RequestBody @Valid SelectPatientRegistrationsForm form) {
         try {
             HashMap<String, Object> result = patientService.selectPatientDetail(form.getPatientCardId());

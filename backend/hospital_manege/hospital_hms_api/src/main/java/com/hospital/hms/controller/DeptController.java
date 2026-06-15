@@ -32,7 +32,7 @@ public class DeptController {
     @PostMapping("/selectConditionByPage")
     @Operation(summary = "根据条件查询科室信息")
     @SaCheckLogin
-    @SaCheckPermission(value = {"ROOT", "MEDICAL_DEPT:SELECT"}, mode = SaMode.OR)
+    @SaCheckPermission(value = {"ROOT", "ORG:SELECT"}, mode = SaMode.OR)
     public CommonResult selectConditionByPage(@RequestBody @Valid SelectMedicalDeptByPageForm form) {
         try {
             Map<String, Object> map = BeanUtil.beanToMap(form);
@@ -47,7 +47,7 @@ public class DeptController {
     @PostMapping("/insert")
     @Operation(summary = "添加科室信息接口")
     @SaCheckLogin
-    @SaCheckPermission(value = {"ROOT", "MEDICAL_DEPT:INSERT"}, mode = SaMode.OR)
+    @SaCheckPermission(value = {"ROOT", "ORG:INSERT"}, mode = SaMode.OR)
     public CommonResult insert(@Valid @RequestBody InsertMedicalDeptForm form){
         try {
             MedicalDept dept = BeanUtil.toBean(form, MedicalDept.class);
@@ -62,7 +62,7 @@ public class DeptController {
     @PostMapping("/selectById")
     @Operation(summary = "根据ID查询科室信息")
     @SaCheckLogin
-    @SaCheckPermission(value = {"ROOT", "MEDICAL_DEPT:INSERT"}, mode = SaMode.OR)
+    @SaCheckPermission(value = {"ROOT", "ORG:INSERT"}, mode = SaMode.OR)
     public CommonResult selectById(@Valid @RequestBody SelectMedicalDeptByIdForm form){
         try {
             Integer id = form.getId();
@@ -77,7 +77,7 @@ public class DeptController {
     @PostMapping("/update")
     @Operation(summary = "更新科室信息")
     @SaCheckLogin
-    @SaCheckPermission(value = {"ROOT", "MEDICAL_DEPT:UPDATE"}, mode = SaMode.OR)
+    @SaCheckPermission(value = {"ROOT", "ORG:UPDATE"}, mode = SaMode.OR)
     public CommonResult update(@Valid @RequestBody UpdateMedicalDeptForm form){
         try {
             MedicalDept dept = BeanUtil.toBean(form, MedicalDept.class);
@@ -92,7 +92,7 @@ public class DeptController {
     @PostMapping("/deleteByIds")
     @Operation(summary = "删除科室")
     @SaCheckLogin
-    @SaCheckPermission(value = {"ROOT", "MEDICAL_DEPT:DELETE"}, mode = SaMode.OR)
+    @SaCheckPermission(value = {"ROOT", "ORG:DELETE"}, mode = SaMode.OR)
     public CommonResult deleteByIds(@RequestBody @Valid DeleteMedicalDeptByIdsForm form){
         try {
             Integer[] ids = form.getIds();

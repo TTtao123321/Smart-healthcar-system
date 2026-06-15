@@ -2,6 +2,8 @@ package com.hospital.hms.dao;
 
 import org.springframework.stereotype.Repository;
 
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -27,4 +29,16 @@ public interface UserDao {
      * @return
      */
     Integer updatePassword(Map<String, Object> map);
+
+    List<HashMap> selectUserByPage(Map<String, Object> map);
+
+    long selectUserCount(Map<String, Object> map);
+
+    HashMap selectUserById(Integer id);
+
+    int insertUser(Map<String, Object> map);
+
+    int updateUser(Map<String, Object> map);
+
+    int deleteUserByIds(Integer[] ids);
 }

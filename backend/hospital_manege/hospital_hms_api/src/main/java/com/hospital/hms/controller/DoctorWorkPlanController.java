@@ -35,7 +35,7 @@ public class DoctorWorkPlanController {
     @PostMapping("/selectWorkPlanByTime")
     @Operation(summary = "按日期查询门诊日程")
     @SaCheckLogin
-    @SaCheckPermission(value = {"ROOT", "DOCTOR_WORK_PLAN:SELECT"}, mode = SaMode.OR)
+    @SaCheckPermission(value = {"ROOT", "SCHEDULE:SELECT"}, mode = SaMode.OR)
     public CommonResult selectWorkPlanByTime(@RequestBody @Valid SelectDoctorWorkPlanInTime form){
         try {
             Map<String, Object> map = BeanUtil.beanToMap(form);
@@ -52,7 +52,7 @@ public class DoctorWorkPlanController {
     @PostMapping("/insert")
     @Operation(summary = "添加门诊日程")
     @SaCheckLogin
-    @SaCheckPermission(value = {"ROOT", "DOCTOR_WORK_PLAN:INSERT"}, mode = SaMode.OR)
+    @SaCheckPermission(value = {"ROOT", "SCHEDULE:INSERT"}, mode = SaMode.OR)
     public CommonResult insert(@RequestBody @Valid InsertWorkPlanForm form){
         Map<String, Object> map = BeanUtil.beanToMap(form);
         String message = doctorWorkPlanService.insert(map);

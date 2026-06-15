@@ -3,6 +3,7 @@ package com.hospital.hms.service.impl;
 import cn.hutool.core.map.MapUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.crypto.digest.MD5;
+import com.hospital.hms.dao.RoleDao;
 import com.hospital.hms.dao.UserDao;
 import com.hospital.hms.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,6 +11,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -22,6 +25,9 @@ public class UserServiceImpl implements UserService {
 
     @Autowired
     private UserDao userDao;
+
+    @Autowired
+    private RoleDao roleDao;
 
     @Override
     public Integer login(Map<String, Object> map) {
@@ -58,5 +64,48 @@ public class UserServiceImpl implements UserService {
     public Integer updatePassword(Map<String, Object> map) {
         //在数据库对明文密码进行加密
         return userDao.updatePassword(map);
+    }
+
+    @Override
+    public HashMap selectUserByPage(Map<String, Object> map) {
+        long count = userDao.selectUserCount(map);
+        ArrayList<HashMap> list = (ArrayList<HashMap>) userDao.selectUserByPage(map);
+        HashMap result = new HashMap();
+        result.put("count", count);
+        result.put("list", list);
+        return result;
+    }
+
+    @Override
+    public HashMap selectUserById(Integer id) {
+        return userDao.selectUserById(id);
+    }
+
+    @Override
+    @Transactional
+    public int insertUser(Map<String, Object> map) {
+        String username = MapUtil.getStr(map, "username");
+        String password = MapUtil.getStr(map, "password");
+        password = encryptPassword(username, password);
+        map.put("password", password);
+        return userDao.insertUser(map);
+    }
+
+    @Override
+    @Transactional
+    public int updateUser(Map<String, Object> map) {
+        return userDao.updateUser(map);
+    }
+
+    @Override
+    @Transactional
+    public int deleteUserByIds(Integer[] ids) {
+        return userDao.deleteUserByIds(ids);
+    }
+
+    @Override
+    public ArrayList selectUserRoleNames(Integer userId) {
+        List<String> names = roleDao.selectRoleNamesByUserId(userId);
+        return new ArrayList(names);
     }
 }

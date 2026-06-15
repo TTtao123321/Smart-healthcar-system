@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hospital.hms.dao.PermissionDao">
+    <select id="selectAllPermissions" resultType="com.hospital.hms.pojo.Permission">
+        SELECT p.id, p.permission_name AS permissionName, p.module_id AS moduleId, p.action_id AS actionId,
+               m.module_name AS moduleName, a.action_name AS actionName
+        FROM permission p
+        LEFT JOIN module m ON p.module_id = m.id
+        LEFT JOIN action a ON p.action_id = a.id
+        ORDER BY p.id
+    </select>
+</mapper>

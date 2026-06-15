@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hospital.hms.dao.RoleDao">
+    <select id="selectAllRoles" resultType="com.hospital.hms.pojo.Role">
+        SELECT id, role_name AS roleName, permissions, `desc`, default_permissions AS defaultPermissions, systemic
+        FROM role
+        ORDER BY id
+    </select>
+
+    <select id="selectRoleById" parameterType="int" resultType="com.hospital.hms.pojo.Role">
+        SELECT id, role_name AS roleName, permissions, `desc`, default_permissions AS defaultPermissions, systemic
+        FROM role
+        WHERE id = #{id}
+    </select>
+
+    <insert id="insertRole" parameterType="com.hospital.hms.pojo.Role" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO role (role_name, permissions, `desc`, default_permissions, systemic)
+        VALUES (#{roleName}, #{permissions}, #{desc}, #{defaultPermissions}, #{systemic})
+    </insert>
+
+    <update id="updateRole" parameterType="com.hospital.hms.pojo.Role">
+        UPDATE role
+        SET role_name = #{roleName},
+            permissions = #{permissions},
+            `desc` = #{desc}
+        WHERE id = #{id} AND systemic = 0
+    </update>
+
+    <delete id="deleteRoleById" parameterType="int">
+        DELETE FROM role WHERE id = #{id} AND systemic = 0
+    </delete>
+
+    <select id="selectRoleNamesByUserId" parameterType="int" resultType="java.lang.String">
+        SELECT DISTINCT r.role_name
+        FROM users u
+        JOIN role r ON JSON_CONTAINS(u.role, CAST(r.id AS CHAR))
+        WHERE u.id = #{userId} AND u.status = 1
+    </select>
+</mapper>

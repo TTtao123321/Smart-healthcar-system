@@ -38,7 +38,7 @@ public class DoctorController {
     @PostMapping("/selectConditionByPage")
     @Operation(summary = "获取医生信息")
     @SaCheckLogin
-    @SaCheckPermission(value = {"ROOT", "DOCTOR:SELECT"}, mode = SaMode.OR)
+    @SaCheckPermission(value = {"ROOT", "MEDICAL:SELECT"}, mode = SaMode.OR)
     public CommonResult selectConditionByPage(@RequestBody @Valid SelectDoctorByPageForm form){
         try {
             Map<String, Object> map = BeanUtil.beanToMap(form);
@@ -53,7 +53,7 @@ public class DoctorController {
     @PostMapping("/insert")
     @Operation(summary = "添加医生")
     @SaCheckLogin
-    @SaCheckPermission(value = {"ROOT", "DOCTOR:INSERT"}, mode = SaMode.OR)
+    @SaCheckPermission(value = {"ROOT", "MEDICAL:INSERT"}, mode = SaMode.OR)
     public CommonResult insert(@RequestBody @Valid InsertDoctorForm form){
         try {
             Map<String, Object> map = BeanUtil.beanToMap(form);
@@ -71,7 +71,7 @@ public class DoctorController {
     @PostMapping("/selectById")
     @Operation(summary = "根据ID查询医生信息")
     @SaCheckLogin
-    @SaCheckPermission(value = {"ROOT", "DOCTOR:SELECT"}, mode = SaMode.OR)
+    @SaCheckPermission(value = {"ROOT", "MEDICAL:SELECT"}, mode = SaMode.OR)
     public CommonResult selectById(@RequestBody @Valid SelectDoctorByIdForm form){
         try {
             Integer id = form.getId();
@@ -86,7 +86,7 @@ public class DoctorController {
     @PostMapping("/update")
     @Operation(summary = "更新医生信息")
     @SaCheckLogin
-    @SaCheckPermission(value = {"ROOT", "DOCTOR:UPDATE"}, mode = SaMode.OR)
+    @SaCheckPermission(value = {"ROOT", "MEDICAL:UPDATE"}, mode = SaMode.OR)
     public CommonResult update(@RequestBody @Valid UpdateDoctorForm form){
         try {
             Map<String, Object> param = BeanUtil.beanToMap(form);
@@ -103,7 +103,7 @@ public class DoctorController {
     @PostMapping("/deleteDoctorByIds")
     @Operation(summary = "删除医生")
     @SaCheckLogin
-    @SaCheckPermission(value = {"ROOT", "DOCTOR:DELETE"}, mode = SaMode.OR)
+    @SaCheckPermission(value = {"ROOT", "MEDICAL:DELETE"}, mode = SaMode.OR)
     public CommonResult deleteDoctorByIds(@RequestBody @Valid DeleteDoctorByIdsForm form){
         try {
             Integer[] ids = form.getIds();
@@ -118,7 +118,7 @@ public class DoctorController {
     @PostMapping("/selectDoctorDetailById")
     @Operation(summary = "查询医生详细信息")
     @SaCheckLogin
-    @SaCheckPermission(value = {"ROOT", "DOCTOR:SELECT"}, mode = SaMode.OR)
+    @SaCheckPermission(value = {"ROOT", "MEDICAL:SELECT"}, mode = SaMode.OR)
     public CommonResult selectDoctorDetailById(@RequestBody @Valid SelectDoctorDetailByIdForm form){
         try {
             Integer id = form.getId();
@@ -133,7 +133,7 @@ public class DoctorController {
     @PostMapping("/updatePhoto")
     @Operation(summary = "更新医生头像")
     @SaCheckLogin
-    @SaCheckPermission(value = {"ROOT", "DOCTOR:UPDATE"}, mode = SaMode.OR)
+    @SaCheckPermission(value = {"ROOT", "MEDICAL:UPDATE"}, mode = SaMode.OR)
     public CommonResult upupdatePhoto(@Param("file") MultipartFile file, @Param("doctorId") Integer doctorId){
         try {
             doctorService.updatePhoto(file,doctorId);
@@ -147,7 +147,7 @@ public class DoctorController {
     @PostMapping("/selectDoctorsBySubId")
     @Operation(summary = "根据诊室查找医生")
     @SaCheckLogin
-    @SaCheckPermission(value = {"ROOT", "DOCTOR:SELECT"}, mode = SaMode.OR)
+    @SaCheckPermission(value = {"ROOT", "MEDICAL:SELECT"}, mode = SaMode.OR)
     public CommonResult selectDoctorsBySubId(@RequestBody @Valid SelectDoctorsBySubIdForm form){
         try {
             Integer deptSubId = form.getDeptSubId();
