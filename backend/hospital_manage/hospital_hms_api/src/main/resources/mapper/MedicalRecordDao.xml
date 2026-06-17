@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hospital.hms.dao.MedicalRecordDao">
+
+    <insert id="insert" parameterType="com.hospital.hms.pojo.MedicalRecord" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO medical_record (uuid, registration_id, patient_id, doctor_id, dept_sub_id,
+            chief_complaint, present_illness, physical_exam, diagnosis, doctor_advice, remark)
+        VALUES (#{uuid}, #{registrationId}, #{patientId}, #{doctorId}, #{deptSubId},
+            #{chiefComplaint}, #{presentIllness}, #{physicalExam}, #{diagnosis}, #{doctorAdvice}, #{remark})
+    </insert>
+
+    <update id="updateById" parameterType="com.hospital.hms.pojo.MedicalRecord">
+        UPDATE medical_record
+        <set>
+            <if test="chiefComplaint != null">chief_complaint = #{chiefComplaint},</if>
+            <if test="presentIllness != null">present_illness = #{presentIllness},</if>
+            <if test="physicalExam != null">physical_exam = #{physicalExam},</if>
+            <if test="diagnosis != null">diagnosis = #{diagnosis},</if>
+            <if test="doctorAdvice != null">doctor_advice = #{doctorAdvice},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <select id="selectById" parameterType="int" resultType="com.hospital.hms.pojo.MedicalRecord">
+        SELECT * FROM medical_record WHERE id = #{id}
+    </select>
+
+    <select id="selectByRegistrationId" parameterType="int" resultType="com.hospital.hms.pojo.MedicalRecord">
+        SELECT * FROM medical_record WHERE registration_id = #{registrationId}
+    </select>
+
+    <select id="selectByPageCount" parameterType="map" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM medical_record mr
+            LEFT JOIN patient_user_info pi ON mr.patient_id = pi.id
+            LEFT JOIN doctor d ON mr.doctor_id = d.id
+        WHERE 1 = 1
+        <if test="patientId != null">
+            AND mr.patient_id = #{patientId}
+        </if>
+        <if test="doctorId != null">
+            AND mr.doctor_id = #{doctorId}
+        </if>
+        <if test="registrationId != null">
+            AND mr.registration_id = #{registrationId}
+        </if>
+    </select>
+
+    <select id="selectByPage" parameterType="map" resultType="java.util.HashMap">
+        SELECT
+            mr.id AS id,
+            mr.uuid AS uuid,
+            mr.chief_complaint AS chiefComplaint,
+            mr.diagnosis AS diagnosis,
+            mr.doctor_advice AS doctorAdvice,
+            mr.create_time AS createTime,
+            pi.name AS patientName,
+            d.name AS doctorName
+        FROM medical_record mr
+            LEFT JOIN patient_user_info pi ON mr.patient_id = pi.id
+            LEFT JOIN doctor d ON mr.doctor_id = d.id
+        WHERE 1 = 1
+        <if test="patientId != null">
+            AND mr.patient_id = #{patientId}
+        </if>
+        <if test="doctorId != null">
+            AND mr.doctor_id = #{doctorId}
+        </if>
+        <if test="registrationId != null">
+            AND mr.registration_id = #{registrationId}
+        </if>
+        ORDER BY mr.create_time DESC
+        LIMIT #{start}, #{length}
+    </select>
+
+    <select id="selectByPatientId" parameterType="map" resultType="java.util.HashMap">
+        SELECT
+            mrd.id AS id,
+            mrd.chief_complaint AS chiefComplaint,
+            mrd.present_illness AS presentIllness,
+            mrd.physical_exam AS physicalExam,
+            mrd.diagnosis AS diagnosis,
+            mrd.doctor_advice AS doctorAdvice,
+            mrd.remark AS remark,
+            mrd.create_time AS createTime,
+            mr.id AS registrationId,
+            mr.date AS date,
+            mr.slot AS slot,
+            mr.status AS status,
+            md.name AS deptName,
+            d.name AS doctorName
+        FROM medical_record mrd
+            LEFT JOIN medical_registration mr ON mrd.registration_id = mr.id
+            LEFT JOIN doctor d ON mrd.doctor_id = d.id
+            LEFT JOIN medical_dept_sub mds ON mrd.dept_sub_id = mds.id
+            LEFT JOIN medical_dept md ON mds.dept_id = md.id
+        WHERE mrd.patient_id = #{patientId}
+        <if test="deptSubId!=null">
+            AND mrd.dept_sub_id = #{deptSubId}
+        </if>
+        <if test="doctorId!=null">
+            AND mrd.doctor_id = #{doctorId}
+        </if>
+        ORDER BY mr.date DESC, mr.slot DESC
+    </select>
+
+</mapper>

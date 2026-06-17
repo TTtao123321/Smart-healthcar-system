@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hospital.hms.dao.PatientDao">
+
+    <select id="selectPatientByPageCount" parameterType="map" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM (
+            SELECT mr.patient_card_id, mr.dept_sub_id, mr.doctor_id
+            FROM medical_registration mr
+                LEFT JOIN patient_user_info pi ON mr.patient_card_id = pi.id
+                LEFT JOIN doctor d ON mr.doctor_id = d.id
+                LEFT JOIN medical_dept_sub mds ON mr.dept_sub_id = mds.id
+                LEFT JOIN medical_dept md ON mds.dept_id = md.id
+            WHERE 1 = 1
+            <if test="name!=null">
+                AND pi.name LIKE CONCAT('%',#{name},'%')
+            </if>
+            <if test="sex!=null">
+                AND pi.sex = #{sex}
+            </if>
+            <if test="deptId!=null">
+                AND md.id = #{deptId}
+            </if>
+            <if test="deptSubId!=null">
+                AND mds.id = #{deptSubId}
+            </if>
+            <if test="doctorId!=null">
+                AND d.id = #{doctorId}
+            </if>
+            <if test="status!=null">
+                AND mr.status = #{status}
+            </if>
+            GROUP BY mr.patient_card_id, mr.dept_sub_id, mr.doctor_id
+        ) t
+    </select>
+
+    <select id="selectPatientByPage" parameterType="map" resultType="java.util.HashMap">
+        SELECT
+            mr.patient_card_id AS patientCardId,
+            mr.dept_sub_id AS deptSubId,
+            mr.doctor_id AS doctorId,
+            MAX(pi.name) AS name,
+            MAX(pi.sex) AS sex,
+            MAX(md.name) AS deptName,
+            MAX(mds.name) AS deptSubName,
+            MAX(d.name) AS doctorName,
+            (SELECT mr2.date FROM medical_registration mr2
+             WHERE mr2.patient_card_id = mr.patient_card_id
+               AND mr2.dept_sub_id = mr.dept_sub_id
+               AND mr2.doctor_id = mr.doctor_id
+             ORDER BY mr2.status ASC, mr2.create_time DESC LIMIT 1) AS date,
+            (SELECT mr2.slot FROM medical_registration mr2
+             WHERE mr2.patient_card_id = mr.patient_card_id
+               AND mr2.dept_sub_id = mr.dept_sub_id
+               AND mr2.doctor_id = mr.doctor_id
+             ORDER BY mr2.status ASC, mr2.create_time DESC LIMIT 1) AS slot,
+            MIN(mr.status) AS status,
+            (SELECT mr2.id FROM medical_registration mr2
+             WHERE mr2.patient_card_id = mr.patient_card_id
+               AND mr2.dept_sub_id = mr.dept_sub_id
+               AND mr2.doctor_id = mr.doctor_id
+             ORDER BY mr2.status ASC, mr2.create_time DESC LIMIT 1) AS registrationId,
+            (SELECT mrd.id FROM medical_record mrd
+             INNER JOIN medical_registration mr3 ON mrd.registration_id = mr3.id
+             WHERE mr3.patient_card_id = mr.patient_card_id
+               AND mr3.dept_sub_id = mr.dept_sub_id
+               AND mr3.doctor_id = mr.doctor_id
+             LIMIT 1) AS medicalRecordId
+        FROM medical_registration mr
+            LEFT JOIN patient_user_info pi ON mr.patient_card_id = pi.id
+            LEFT JOIN doctor d ON mr.doctor_id = d.id
+            LEFT JOIN medical_dept_sub mds ON mr.dept_sub_id = mds.id
+            LEFT JOIN medical_dept md ON mds.dept_id = md.id
+        WHERE 1 = 1
+        <if test="name!=null">
+            AND pi.name LIKE CONCAT('%',#{name},'%')
+        </if>
+        <if test="sex!=null">
+            AND pi.sex = #{sex}
+        </if>
+        <if test="deptId!=null">
+            AND md.id = #{deptId}
+        </if>
+        <if test="deptSubId!=null">
+            AND mds.id = #{deptSubId}
+        </if>
+        <if test="doctorId!=null">
+            AND d.id = #{doctorId}
+        </if>
+        <if test="status!=null">
+            AND mr.status = #{status}
+        </if>
+        GROUP BY mr.patient_card_id, mr.dept_sub_id, mr.doctor_id
+        ORDER BY MAX(mr.create_time) DESC
+        LIMIT #{start}, #{length}
+    </select>
+
+    <select id="selectPatientInfoById" parameterType="int" resultType="java.util.HashMap">
+        SELECT
+            id AS patientCardId,
+            name, sex, pid, tel, birthday,
+            medical_history AS medicalHistory,
+            allergy_history AS allergyHistory,
+            family_history AS familyHistory,
+            insurance_type AS insuranceType
+        FROM patient_user_info
+        WHERE id = #{patientCardId}
+    </select>
+
+    <select id="selectRegistrationsByPatientId" parameterType="map" resultType="java.util.HashMap">
+        SELECT
+            mr.id AS registrationId,
+            mr.date AS date,
+            mr.slot AS slot,
+            mr.status AS status,
+            mr.payment_status AS paymentStatus,
+            md.name AS deptName,
+            mds.name AS deptSubName,
+            d.name AS doctorName,
+            mrd.diagnosis AS diagnosis,
+            mrd.doctor_advice AS doctorAdvice,
+            mrd.id AS medicalRecordId
+        FROM medical_registration mr
+            LEFT JOIN doctor d ON mr.doctor_id = d.id
+            LEFT JOIN medical_dept_sub mds ON mr.dept_sub_id = mds.id
+            LEFT JOIN medical_dept md ON mds.dept_id = md.id
+            LEFT JOIN medical_record mrd ON mrd.registration_id = mr.id
+        WHERE mr.patient_card_id = #{patientCardId}
+        <if test="deptSubId!=null">
+            AND mr.dept_sub_id = #{deptSubId}
+        </if>
+        <if test="doctorId!=null">
+            AND mr.doctor_id = #{doctorId}
+        </if>
+        ORDER BY mr.create_time DESC
+    </select>
+
+    <insert id="insertPatient" parameterType="com.hospital.hms.pojo.PatientUserInfo" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO patient_user_info (uuid, name, sex, pid, tel, birthday, password, medical_history, allergy_history, family_history, insurance_type)
+        VALUES (#{uuid}, #{name}, #{sex}, #{pid}, #{tel}, #{birthday}, #{password}, #{medicalHistory}, #{allergyHistory}, #{familyHistory}, #{insuranceType})
+    </insert>
+
+    <update id="updatePatientById" parameterType="com.hospital.hms.pojo.PatientUserInfo">
+        UPDATE patient_user_info
+        <set>
+            <if test="name != null">name = #{name},</if>
+            <if test="sex != null">sex = #{sex},</if>
+            <if test="pid != null">pid = #{pid},</if>
+            <if test="tel != null">tel = #{tel},</if>
+            <if test="birthday != null">birthday = #{birthday},</if>
+            <if test="medicalHistory != null">medical_history = #{medicalHistory},</if>
+            <if test="allergyHistory != null">allergy_history = #{allergyHistory},</if>
+            <if test="familyHistory != null">family_history = #{familyHistory},</if>
+            <if test="insuranceType != null">insurance_type = #{insuranceType},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <!-- 根据手机号查询患者信息 -->
+    <select id="selectPatientByTel" parameterType="string" resultType="com.hospital.hms.pojo.PatientUserInfo">
+        SELECT id, uuid, name, sex, pid, tel, birthday, password,
+               medical_history AS medicalHistory,
+               allergy_history AS allergyHistory,
+               family_history AS familyHistory,
+               insurance_type AS insuranceType,
+               create_time AS createTime,
+               update_time AS updateTime
+        FROM patient_user_info
+        WHERE tel = #{tel}
+        LIMIT 1
+    </select>
+
+    <update id="updateRegistrationStatus">
+        UPDATE medical_registration SET status = #{status} WHERE id = #{id}
+    </update>
+
+</mapper>

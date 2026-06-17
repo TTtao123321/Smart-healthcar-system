@@ -23,10 +23,10 @@ dist/
 Thumbs.db
 
 # === Docker local data ===
-backend/hospital_manege/data/
+backend/hospital_manage/data/
 
 # === Local Docker Compose override ===
-backend/hospital_manege/docker-compose.override.yml
+backend/hospital_manage/docker-compose.override.yml
 
 # === Env files ===
 .env
@@ -41,3 +41,10 @@ application-local.yml
 # === Agent tooling ===
 .agents/
 skills-lock.json
+
+# === IDE Agent ===
+.trae/
+
+# === Backup / temp files ===
+*.bak
+*.tmp

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hospital.hms.dao.PrescriptionItemDao">
+
+    <insert id="batchInsert" parameterType="java.util.List">
+        INSERT INTO prescription_item (prescription_id, drug_name, specification, quantity, dosage, frequency, days, remark)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.prescriptionId}, #{item.drugName}, #{item.specification}, #{item.quantity},
+             #{item.dosage}, #{item.frequency}, #{item.days}, #{item.remark})
+        </foreach>
+    </insert>
+
+    <select id="selectByPrescriptionId" parameterType="int" resultType="com.hospital.hms.pojo.PrescriptionItem">
+        SELECT * FROM prescription_item WHERE prescription_id = #{prescriptionId}
+    </select>
+
+    <delete id="deleteByPrescriptionId" parameterType="int">
+        DELETE FROM prescription_item WHERE prescription_id = #{prescriptionId}
+    </delete>
+
+</mapper>
