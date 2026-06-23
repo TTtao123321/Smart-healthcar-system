@@ -62,3 +62,20 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
+
+  # patient_agent_backend:
+  #   build:
+  #     context: ./patient_agent_backend
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "8001:8000"
+  #   environment:
+  #     - HMS_API_URL=http://hospital_hms_api:8080
+  #     - REDIS_URL=redis://redis:6379/1
+  #     - OPENAI_API_KEY=${OPENAI_API_KEY}
+  #     - OPENAI_BASE_URL=${OPENAI_BASE_URL:-}
+  #     - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
+  #   depends_on:
+  #     - redis
+  #     - hospital_hms_api
+  #   restart: unless-stopped
