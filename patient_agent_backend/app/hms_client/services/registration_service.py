@@ -1,0 +1,90 @@
+"""挂号服务 — 对接 HMS 挂号相关 API"""
+
+import logging
+from typing import TYPE_CHECKING
+
+from app.hms_client.models import (
+    RegistrationCancelRequest,
+    RegistrationCancelResponse,
+    RegistrationCreateRequest,
+    RegistrationCreateResponse,
+    RegistrationItem,
+    RegistrationQueryRequest,
+    RegistrationQueryResponse,
+)
+
+if TYPE_CHECKING:
+    from app.hms_client.client import HmsClient
+
+logger = logging.getLogger(__name__)
+
+
+class RegistrationService:
+    """挂号服务"""
+
+    def __init__(self, client: "HmsClient"):
+        self._client = client
+
+    async def create(self, request: RegistrationCreateRequest) -> RegistrationCreateResponse:
+        """创建挂号预约
+
+        对接 HMS: POST /medical_registration/save
+        """
+        data = await self._client.post(
+            "/medical_registration/save",
+            json=request.model_dump(mode="json"),
+        )
+
+        result = data.get("result", data)
+        return RegistrationCreateResponse(
+            id=result.get("id", 0),
+            status=result.get("status", 0),
+        )
+
+    async def query(self, request: RegistrationQueryRequest) -> RegistrationQueryResponse:
+        """查询挂号状态
+
+        对接 HMS: POST /patient/selectByPage
+        """
+        payload = {"page": 1, "length": 20}
+        if request.patient_card_id:
+            payload["patientCardId"] = request.patient_card_id
+        if request.registration_id:
+            payload["id"] = request.registration_id
+
+        data = await self._client.post(
+            "/patient/selectByPage",
+            json=payload,
+        )
+
+        result = data.get("result", {})
+        items = []
+        for item in result.get("list", []):
+            items.append(RegistrationItem(
+                id=item.get("id", 0),
+                patient_card_id=item.get("patientCardId"),
+                work_plan_id=item.get("workPlanId"),
+                doctor_schedule_id=item.get("doctorScheduleId"),
+                doctor_id=item.get("doctorId"),
+                dept_sub_id=item.get("deptSubId"),
+                date=item.get("date"),
+                slot=item.get("slot"),
+                status=item.get("status"),
+                payment_status=item.get("paymentStatus"),
+                create_time=item.get("createTime"),
+            ))
+
+        return RegistrationQueryResponse(items=items)
+
+    async def cancel(self, request: RegistrationCancelRequest) -> RegistrationCancelResponse:
+        """取消挂号
+
+        对接 HMS: POST /patient/updateRegistrationStatus
+        """
+        data = await self._client.post(
+            "/patient/updateRegistrationStatus",
+            json={"id": request.registration_id, "status": -1},
+        )
+
+        result = data.get("result", 0)
+        return RegistrationCancelResponse(result=result if isinstance(result, int) else 0)
