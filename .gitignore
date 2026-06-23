@@ -11,6 +11,21 @@ node_modules/
 dist/
 .vite/
 
+# === Python ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+build/
+.eggs/
+*.egg
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+.ruff_cache/
+
 # === IDE ===
 .idea/
 *.iml
@@ -23,10 +38,10 @@ dist/
 Thumbs.db
 
 # === Docker local data ===
-backend/hospital_manage/data/
+hospital_manage_backend/data/
 
 # === Local Docker Compose override ===
-backend/hospital_manage/docker-compose.override.yml
+hospital_manage_backend/docker-compose.override.yml
 
 # === Env files ===
 .env
