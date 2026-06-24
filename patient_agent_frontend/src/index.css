@@ -1487,3 +1487,145 @@ img {
   border-radius: 6px;
   margin-bottom: 6px;
 }
+
+/* ========== TOOL CALL BAR ========== */
+.tool-call-bar {
+  margin-bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tool-call-item {
+  background: #F0F9FF;
+  border: 1px solid #BAE6FD;
+  border-radius: 10px;
+  overflow: hidden;
+  transition: box-shadow 0.15s;
+}
+
+.tool-call-item:hover {
+  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.08);
+}
+
+.tool-call-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+
+.tool-call-row:hover {
+  background: rgba(186, 230, 253, 0.3);
+}
+
+.tool-call-icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.tool-call-spinner {
+  animation: tool-call-spin 1s linear infinite;
+  color: #0EA5E9;
+}
+
+@keyframes tool-call-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.tool-call-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #334155;
+  flex: 1;
+}
+
+.tool-call-status {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.tool-call-status-running {
+  background: #FEF3C7;
+  color: #D97706;
+}
+
+.tool-call-status-success {
+  background: #D1FAE5;
+  color: #059669;
+}
+
+.tool-call-status-error {
+  background: #FEE2E2;
+  color: #DC2626;
+}
+
+.tool-call-chevron {
+  color: #94A3B8;
+  flex-shrink: 0;
+}
+
+.tool-call-detail {
+  padding: 0 12px 10px;
+  border-top: 1px solid #BAE6FD;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: tool-call-detail-in 0.2s ease-out;
+}
+
+@keyframes tool-call-detail-in {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 500px;
+  }
+}
+
+.tool-call-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tool-call-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #94A3B8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.tool-call-code {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #334155;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-family: 'SF Mono', 'Fira Code', 'Fira Mono', Menlo, Consolas, monospace;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.tool-call-error {
+  color: #DC2626;
+  background: #FEF2F2;
+  border-color: #FECACA;
+}
+
+.text-emerald { color: #059669; }
