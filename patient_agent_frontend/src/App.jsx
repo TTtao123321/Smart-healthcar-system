@@ -4,7 +4,8 @@ import {
   User, Lock, CheckCircle, ArrowRight,
   LogOut, Trash2, Send, Shield, Eye, EyeOff,
   MessageSquare, Plus, MessageCircle, UserCircle,
-  Calendar, Clock, Stethoscope, ChevronDown, X
+  Calendar, Clock, Stethoscope, ChevronDown, ChevronUp, X,
+  Loader, XCircle
 } from 'lucide-react'
 
 const ToastContext = createContext(null)
@@ -840,6 +841,72 @@ function WelcomeScreen({ setInput }) {
   )
 }
 
+function ToolCallBar({ toolCalls }) {
+  const [expandedId, setExpandedId] = useState(null)
+
+  if (!toolCalls || toolCalls.length === 0) return null
+
+  const toggleExpand = (id) => {
+    setExpandedId(expandedId === id ? null : id)
+  }
+
+  return (
+    <div className="tool-call-bar">
+      {toolCalls.map((tc) => (
+        <div key={tc.toolCallId} className="tool-call-item">
+          <div
+            className="tool-call-row"
+            onClick={() => toggleExpand(tc.toolCallId)}
+          >
+            <span className="tool-call-icon">
+              {tc.status === 'running' ? (
+                <Loader size={14} className="tool-call-spinner" />
+              ) : tc.status === 'error' ? (
+                <XCircle size={14} className="text-rose" />
+              ) : (
+                <CheckCircle size={14} className="text-emerald" />
+              )}
+            </span>
+            <span className="tool-call-name">
+              {TOOL_NAME_MAP[tc.toolName] || tc.toolName}
+            </span>
+            <span className={`tool-call-status tool-call-status-${tc.status}`}>
+              {tc.status === 'running' ? '调用中' : tc.status === 'error' ? '失败' : '成功'}
+            </span>
+            {expandedId === tc.toolCallId ? (
+              <ChevronUp size={14} className="tool-call-chevron" />
+            ) : (
+              <ChevronDown size={14} className="tool-call-chevron" />
+            )}
+          </div>
+          {expandedId === tc.toolCallId && (
+            <div className="tool-call-detail">
+              <div className="tool-call-section">
+                <span className="tool-call-label">调用参数</span>
+                <pre className="tool-call-code">
+                  {JSON.stringify(tc.toolArgs, null, 2)}
+                </pre>
+              </div>
+              {tc.status === 'success' && tc.toolResult && (
+                <div className="tool-call-section">
+                  <span className="tool-call-label">返回结果</span>
+                  <pre className="tool-call-code">{tc.toolResult}</pre>
+                </div>
+              )}
+              {tc.status === 'error' && tc.toolError && (
+                <div className="tool-call-section">
+                  <span className="tool-call-label">错误信息</span>
+                  <pre className="tool-call-code tool-call-error">{tc.toolError}</pre>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function ChatBubble({ msg, isStreaming, isLast }) {
   const isAI = msg.role === 'ai'
   const [displayed, setDisplayed] = useState('')
@@ -875,6 +942,9 @@ function ChatBubble({ msg, isStreaming, isLast }) {
         {isAI ? <Shield size={15} className="text-white" /> : <User size={15} className="text-white" />}
       </div>
       <div className={`max-w-[72%] ${isAI ? '' : 'flex flex-col items-end'}`}>
+        {isAI && msg.toolCalls && msg.toolCalls.length > 0 && (
+          <ToolCallBar toolCalls={msg.toolCalls} />
+        )}
         <div className={`bubble ${isAI ? 'bubble-ai' : 'bubble-user'}`}>
           {displayed}
           {!done && displayed && <span className="typing-cursor" />}
