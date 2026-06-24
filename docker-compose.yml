@@ -1,0 +1,179 @@
+networks:
+  hospital-net:
+    driver: bridge
+
+services:
+  # ==================== 中间件 ====================
+  mysql:
+    image: ${REGISTRY_PREFIX:-docker.io/library}/mysql:8.4
+    container_name: fm-mysql
+    restart: unless-stopped
+    ports: ["4307:3306"]
+    environment:
+      MYSQL_ROOT_PASSWORD: 123456
+      MYSQL_DATABASE: fm_hospital
+      TZ: Asia/Shanghai
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+      - ./hospital_manage_backend/init-sql:/docker-entrypoint-initdb.d
+    command:
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --default-time-zone=+8:00
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p123456"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [hospital-net]
+
+  redis:
+    image: ${REGISTRY_PREFIX:-docker.io/library}/redis:8-alpine
+    container_name: fm-redis
+    restart: unless-stopped
+    ports: ["7379:6379"]
+    command: redis-server --requirepass 123456
+    volumes: ["./data/redis:/data"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "123456", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks: [hospital-net]
+
+  rabbitmq:
+    image: ${REGISTRY_PREFIX:-docker.io/library}/rabbitmq:4.2-management-alpine
+    container_name: fm-rabbitmq
+    restart: unless-stopped
+    ports: ["5672:5672", "15672:15672"]
+    environment:
+      RABBITMQ_DEFAULT_USER: root
+      RABBITMQ_DEFAULT_PASS: 123456
+      TZ: Asia/Shanghai
+    volumes: ["./data/rabbitmq:/var/lib/rabbitmq"]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks: [hospital-net]
+
+  minio:
+    image: ${REGISTRY_MINIO_PREFIX:-docker.io/minio}/minio:RELEASE.2025-04-08T15-41-24Z
+    container_name: fm-minio
+    restart: unless-stopped
+    ports: ["9000:9000", "9001:9001"]
+    environment:
+      MINIO_ROOT_USER: root
+      MINIO_ROOT_PASSWORD: 12345678abc
+      TZ: Asia/Shanghai
+    volumes: ["./data/minio:/data"]
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks: [hospital-net]
+
+  # ==================== MinIO 一次性初始化(自动创建 bucket)====================
+  minio-init:
+    image: ${REGISTRY_MINIO_PREFIX:-docker.io/minio}/mc:RELEASE.2025-04-08T15-39-49Z
+    container_name: fm-minio-init
+    depends_on:
+      minio: { condition: service_healthy }
+    networks: [hospital-net]
+    entrypoint: >-
+      /bin/sh -c "
+      set -e;
+      mc alias set local http://minio:9000 root 12345678abc;
+      mc mb --ignore-existing local/hospital;
+      mc anonymous set download local/hospital;
+      echo 'MinIO bucket [hospital] ready.';
+      "
+    restart: "no"
+
+  # ==================== HMS 后端 ====================
+  hospital_hms_api:
+    build:
+      context: ./hospital_manage_backend
+      dockerfile: Dockerfile
+      args:
+        REGISTRY_PREFIX: ${REGISTRY_PREFIX:-docker.io/library}
+        MAVEN_MIRROR_URL: ${MAVEN_MIRROR_URL:-}
+    container_name: fm-hms-api
+    restart: unless-stopped
+    ports: ["9091:9091"]
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DB: fm_hospital
+      MYSQL_USER: root
+      MYSQL_PASSWORD: 123456
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: 123456
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: root
+      RABBITMQ_PASSWORD: 123456
+      MINIO_ENDPOINT: http://minio:9000
+      TZ: Asia/Shanghai
+    depends_on:
+      mysql: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      minio: { condition: service_started }
+      minio-init: { condition: service_completed_successfully }
+    networks: [hospital-net]
+
+  # ==================== HMS 前端 ====================
+  hospital_manage_frontend:
+    image: ${REGISTRY_PREFIX:-docker.io/library}/node:20-alpine
+    container_name: fm-hms-frontend
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    ports: ["4000:4000"]
+    volumes:
+      - ./hospital_manage_frontend:/app
+      - /app/node_modules
+    depends_on: [hospital_hms_api]
+    networks: [hospital-net]
+
+  # ==================== Agent 后端 ====================
+  patient_agent_backend:
+    build:
+      context: ./patient_agent_backend
+      dockerfile: Dockerfile
+      args:
+        REGISTRY_PREFIX: ${REGISTRY_PREFIX:-docker.io/library}
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-}
+        DEBIAN_MIRROR_URL: ${DEBIAN_MIRROR_URL:-}
+    container_name: fm-patient-agent-backend
+    restart: unless-stopped
+    ports: ["8001:8000"]
+    environment:
+      HMS_API_URL: http://hospital_hms_api:9091/hms
+      REDIS_URL: redis://:123456@redis:6379/1
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      HMS_ADMIN_USERNAME: ${HMS_ADMIN_USERNAME:-admin}
+      HMS_ADMIN_PASSWORD: ${HMS_ADMIN_PASSWORD:-admin123}
+    depends_on:
+      redis: { condition: service_healthy }
+      hospital_hms_api: { condition: service_started }
+    networks: [hospital-net]
+
+  # ==================== Agent 前端 ====================
+  patient_agent_frontend:
+    image: ${REGISTRY_PREFIX:-docker.io/library}/node:20-alpine
+    container_name: fm-patient-agent-frontend
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    ports: ["5174:5174"]
+    volumes:
+      - ./patient_agent_frontend:/app
+      - /app/node_modules
+    depends_on: [patient_agent_backend]
+    networks: [hospital-net]

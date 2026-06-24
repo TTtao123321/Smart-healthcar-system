@@ -1,8 +1,6 @@
-const path = require('path')
+import path from 'path'
 import vue from '@vitejs/plugin-vue'
-import viteSvgIcons, {
-    createSvgIconsPlugin
-} from 'vite-plugin-svg-icons';
+import { createSvgIconsPlugin } from 'vite-plugin-svg-icons'
 
 import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
@@ -10,10 +8,11 @@ import {
     ElementPlusResolver
 } from 'unplugin-vue-components/resolvers'
 
-module.exports = {
+export default {
     base: '/hms-vue',
     server: {
         port: 4000,
+        host: '0.0.0.0',
         //是否弹出浏览器
         open: false,
         //允许跨域

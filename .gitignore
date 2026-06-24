@@ -39,13 +39,16 @@ Thumbs.db
 
 # === Docker local data ===
 hospital_manage_backend/data/
+data/
 
 # === Local Docker Compose override ===
 hospital_manage_backend/docker-compose.override.yml
+docker-compose.override.yml
 
 # === Env files ===
 .env
 .env.local
+**/.env
 
 # === Application local config ===
 application-local.yml

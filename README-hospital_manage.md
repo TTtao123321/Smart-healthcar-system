@@ -1,188 +1,126 @@
-# 智慧医院管理系统
+# 智慧医院管理系统(Smart-healthcar-system)
 
-医院后台管理系统，覆盖科室管理、医生排班、患者管理、诊费设置、视频问诊等功能。
+智慧医院管理系统 + 患者智能助手 Agent。一条命令启动全栈,无需在宿主机安装 JDK / Maven / Node / Python / Redis。
 
-- **后端**：Spring Boot 2.5.2 + MyBatis + Sa-Token + MySQL + Redis + RabbitMQ + MinIO
-- **前端**：Vue 3 + Vite + Element Plus（管理后台）
-- **患者端**：待重新开发（原有微信小程序端已移除）
+## 子系统
 
-## 功能模块
-
-```
-首页
-├── 组织管理
-│   ├── 医疗科室管理
-│   └── 医疗诊室管理
-├── 医护管理
-│   ├── 医生管理
-│   ├── 患者管理        ← 新增
-│   └── 诊费设置
-├── 出诊管理
-│   ├── 门诊日程表
-│   ├── 医生出诊表
-│   └── 视频问诊
-└── 系统设置
-```
-
-### 患者管理
-
-支持按姓名、性别、科室、诊室、就诊医师、就诊状态（待就诊/就诊中/已就诊/复诊中）进行分页查询，可查看患者基本信息及历史就诊记录。
+- **HMS 后端**(`hospital_manage_backend/`):Spring Boot 2.5.2 + MyBatis + Sa-Token + MySQL + Redis + RabbitMQ + MinIO
+- **HMS 前端**(`hospital_manage_frontend/`):Vue 3 + Vite + Element Plus(管理后台)
+- **Agent 后端**(`patient_agent_backend/`):FastAPI + LangGraph + Redis 对话记忆
+- **Agent 前端**(`patient_agent_frontend/`):React 19 + Vite + Tailwind 4
 
 ## 项目结构
 
 ```
-├── backend/
-│   └── hospital_manege/        # 后端服务
-│       ├── common/              # 公共模块
-│       ├── hospital_hms_api/    # 主 API 服务
-│       │   └── src/main/java/com/hospital/hms/
-│       │       ├── controller/  # 控制器（含 PatientController）
-│       │       ├── service/     # 服务层
-│       │       ├── dao/         # 数据访问层（含 PatientDao）
-│       │       └── pojo/        # 实体类（含 PatientUserInfo）
-│       ├── pom.xml              # 父 POM（聚合模块）
-│       ├── Dockerfile           # 后端容器构建
-│       ├── docker-compose.yml   # 全服务编排
-│       ├── fm_hospital.sql      # 数据库 SQL 备份
-│       └── init-db.sh           # 数据库初始化脚本
-├── frontend/
-│   └── hospital_manege/        # 前端管理后台
-│       ├── src/
-│       │   ├── views/           # 页面组件（含 patient.vue）
-│       │   └── router/          # 路由配置
-│       ├── Dockerfile           # 前端容器构建
-│       └── nginx.conf           # Nginx 配置
-└── README.md
+Smart-healthcar-system/
+├── docker-compose.yml          # 一键启动入口(9 个服务)
+├── .env.example                # 顶层环境变量示例
+├── hospital_manage_backend/    # HMS Java 后端 + init-sql/(数据库自动建表脚本)
+│   ├── Dockerfile
+│   ├── hospital_hms_api/
+│   ├── common/
+│   └── init-sql/               # init.sql / init-rbac.sql / init-agent-tables.sql / init-patient-data.sql
+├── hospital_manage_frontend/   # HMS Vue 管理后台
+├── patient_agent_backend/      # Patient Agent FastAPI 后端
+│   ├── Dockerfile
+│   └── .env.example
+└── patient_agent_frontend/     # Patient Agent React 前端
 ```
 
-## 数据库核心表
-
-### 患者相关（已精简）
-
-| 表名 | 说明 |
-|------|------|
-| `patient_user_info` | 患者信息（就诊卡号、姓名、性别、身份证、手机、密码、疾病史） |
-| `medical_registration` | 门诊挂号记录（关联患者、医生、诊室、就诊状态） |
-| `doctor_consultation_report` | 就诊报告（诊断结果、处方，通过 registration_id 关联挂号单） |
-
-> 已移除的表：`patient_user`（微信账号）、`patient_face_auth`（人脸认证）、`patient_video_diagnosis`（视频问诊记录）、`patient_video_diagnosis_files`
-
-## 本地运行
+## 一键启动(推荐)
 
 ### 前置条件
 
-| 工具 | 版本要求 |
-|------|---------|
-| Docker | 任意版本（跑中间件） |
-| JDK | 17（项目目标版本） |
-| Maven | 3.6+ |
-| Node.js | 16+ |
-| npm | 8+ |
+- Docker 20+(或 Docker Desktop)
+- Docker Compose v2
 
-### 1. 启动基础设施（Docker）
+无需在宿主机安装 JDK / Maven / Node / Python / Redis。
 
-在 `backend/hospital_manege/` 目录下运行：
+### 步骤
 
 ```bash
-cd backend/hospital_manege
-docker compose up -d mysql redis rabbitmq minio
+git clone https://github.com/TTtao123321/Smart-healthcar-system.git
+cd Smart-healthcar-system
+
+# 1. 准备环境变量(填入 OPENAI_API_KEY)
+cp .env.example .env
+vim .env
+
+# 2. 一键启动全部 9 个服务
+docker compose up -d --build
+
+# 3. 查看状态
+docker compose ps
 ```
 
-这将会启动 4 个容器：
+首次启动需 1-2 分钟拉镜像与构建,之后可直接 `docker compose up -d`。
 
-| 服务 | 端口 | 认证 |
-|------|------|------|
-| MySQL | 4307:3306 | root / 123456 |
-| Redis | 7379:6379 | 密码 123456 |
-| RabbitMQ | 5672:5672 | root / 123456 |
-| MinIO | 9000:9000 | root / 12345678abc |
+### 数据自动初始化(开箱即用)
 
-启动前需确保已创建数据库初始化文件：
+- **MySQL**:首次启动会按字典序自动执行 `hospital_manage_backend/init-sql/*.sql`,完成建库 + 21+ 张表 + 初始化数据(RBAC/患者/Agent)
+- **MinIO**:`minio-init` 一次性服务自动创建 `hospital` bucket 并设置匿名读权限,完成后退出
+- **重置数据**:`docker compose down -v && docker compose up -d`(清空 `./data/` 数据卷会再次触发自动初始化)
+
+## 服务端口表
+
+| 服务 | 容器端口 | 宿主端口 | 访问入口 |
+|---|---|---|---|
+| MySQL | 3306 | 4307 | `localhost:4307` (root / 123456) |
+| Redis | 6379 | 7379 | `localhost:7379` (密码 123456) |
+| RabbitMQ | 5672 / 15672 | 5672 / 15672 | 管理台 `http://localhost:15672` (root / 123456) |
+| MinIO | 9000 / 9001 | 9000 / 9001 | 控制台 `http://localhost:9001` (root / 12345678abc) |
+| hospital_hms_api | 9091 | 9091 | API 文档 `http://localhost:9091/hms/doc-api.html` |
+| hospital_manage_frontend | 4000 | 4000 | 管理后台 `http://localhost:4000/hms-vue` |
+| patient_agent_backend | 8000 | 8001 | 健康检查 `http://localhost:8001/health` |
+| patient_agent_frontend | 5174 | 5174 | 患者助手 `http://localhost:5174` |
+| minio-init | - | - | 一次性,完成后 `Exited (0)` 即正常 |
+
+## 默认登录账号
+
+| 系统 | 用户名 | 密码 | 角色 |
+|---|---|---|---|
+| HMS 管理后台 | zhangsan | zhangsan | 超级管理员 |
+| HMS 管理后台 | admin | admin123 | 超级管理员 |
+| Agent 前端 | 短信验证码登录 | - | 患者(MVP 阶段) |
+
+## 常见操作
 
 ```bash
-mkdir -p init-sql
-cp fm_hospital.sql init-sql/init.sql
+# 查看某个服务日志
+docker compose logs -f hospital_hms_api
+docker compose logs -f patient_agent_backend
+
+# 重启某个服务
+docker compose restart hospital_hms_api
+
+# 停止所有(保留数据)
+docker compose down
+
+# 停止并清空数据卷(慎用)
+docker compose down -v
+
+# 仅重新执行 MinIO bucket 初始化
+docker compose run --rm minio-init
 ```
 
-Docker 启动时会自动执行 `init-sql/init.sql` 完成建库建表。
+## 本地 IDE 直跑(可选)
 
-> **注意**：Mac 用户首次启动可能遇到 `/home/hospital_manage/` 路径挂载问题，可以创建 `docker-compose.override.yml` 将卷路径改为本地目录（如 `./data/mysql:/var/lib/mysql`），该文件已被 .gitignore 忽略。
-
-### 2. 启动后端
+`hospital_hms_api/src/main/resources/application.yml` 中所有外部连接均使用 `${ENV:default}` 占位,默认值指向本机宿主端口(4307/7379/5672/9000),与 Docker 一键启动同时兼容,无需改文件即可在 IDE 直接 Run。
 
 ```bash
-# 在 backend/hospital_manege 目录下
+# IDE 直跑前:确保中间件已起来(用 Docker 跑中间件即可)
+docker compose up -d mysql redis rabbitmq minio minio-init
 
-# 先安装 common 模块到本地仓库
-mvn clean install -pl common -am -Dmaven.test.skip=true
-
-# 启动后端 API
-mvn -pl hospital_hms_api spring-boot:run -Dmaven.test.skip=true
+# 然后 IDEA 直接 Run HmsApiApplication;前端目录 npm install && npm run dev
 ```
 
-后端运行在 `http://localhost:9091/hms`。
+## 安全提示
 
-API 文档：`http://localhost:9091/hms/doc-api.html`
+- `.env` 已在 `.gitignore` 中,严禁提交到 git
+- 默认 MySQL/Redis/RabbitMQ/MinIO 密码仅适用于本地开发,生产部署请改用 secrets
 
-### 3. 启动前端
+## 不在本仓库范围内
 
-```bash
-# 在 frontend/hospital_manege 目录下
-
-npm install
-npm run dev
-```
-
-前端运行在 `http://localhost:4000/hms-vue`。
-
-### 4. MinIO 初始化（首次）
-
-MinIO 首次启动后，需通过控制台创建 `hospital` 存储桶：
-
-- 地址：`http://localhost:9001`
-- 账号：`root` / `12345678abc`
-- 创建名为 `hospital` 的 bucket
-
-### 5. 访问系统
-
-- 前端管理后台：`http://localhost:4000/hms-vue`
-- 默认账号：`zhangsan` / `zhangsan`
-
-### 首次运行快速脚本
-
-```bash
-# 1. 基础设施
-cd backend/hospital_manege
-mkdir -p init-sql && cp fm_hospital.sql init-sql/init.sql
-docker compose up -d mysql redis rabbitmq minio
-sleep 10  # 等待 MySQL 就绪
-
-# 2. 后端
-mvn clean install -pl common -am -Dmaven.test.skip=true
-mvn -pl hospital_hms_api spring-boot:run -Dmaven.test.skip=true &
-
-# 3. 前端
-cd ../../frontend/hospital_manege
-npm install
-npm run dev
-```
-
-## 一键部署（Docker 生产模式）
-
-如需完整的 Docker 部署（包含后端和前端容器）：
-
-```bash
-cd backend/hospital_manege
-sudo mkdir -p /home/hospital_manage/{mysql,redis,rabbitmq,minio}
-cp fm_hospital.sql init-sql/init.sql
-docker compose up -d
-```
-
-访问 `http://localhost:4000/hms-vue`。
-
-## 默认账号
-
-| 用户名 | 密码 | 角色 |
-|--------|------|------|
-| zhangsan | zhangsan | 超级管理员 |
-| admin | admin123 | 超级管理员 |
+- Kubernetes 生产部署
+- HTTPS / 镜像仓库推送
+- 微信小程序端(已下线)

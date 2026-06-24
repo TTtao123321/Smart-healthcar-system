@@ -6,6 +6,61 @@
 SET NAMES utf8mb4;
 SET CHARACTER_SET_CONNECTION=utf8mb4;
 
+-- 创建缺失的表（如果 01-init.sql 未包含）
+DROP TABLE IF EXISTS `medical_record`;
+CREATE TABLE `medical_record` (
+  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `uuid` char(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '唯一编号',
+  `registration_id` int(11) NULL DEFAULT NULL COMMENT '关联挂号单ID',
+  `patient_id` int(11) NULL DEFAULT NULL COMMENT '患者ID',
+  `doctor_id` int(11) NULL DEFAULT NULL COMMENT '医生ID',
+  `dept_sub_id` int(11) NULL DEFAULT NULL COMMENT '诊室ID',
+  `chief_complaint` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '主诉',
+  `present_illness` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL COMMENT '现病史',
+  `physical_exam` varchar(1000) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '体格检查',
+  `diagnosis` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '诊断结果',
+  `doctor_advice` varchar(1000) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '医嘱',
+  `remark` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '备注',
+  `create_time` datetime(0) NULL DEFAULT CURRENT_TIMESTAMP(0) COMMENT '创建时间',
+  `update_time` datetime(0) NULL DEFAULT CURRENT_TIMESTAMP(0) ON UPDATE CURRENT_TIMESTAMP(0) COMMENT '更新时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_registration_id` (`registration_id`) USING BTREE,
+  INDEX `idx_patient_id` (`patient_id`) USING BTREE,
+  INDEX `idx_doctor_id` (`doctor_id`) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Dynamic;
+
+DROP TABLE IF EXISTS `prescription`;
+CREATE TABLE `prescription` (
+  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `uuid` char(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '处方编号',
+  `medical_record_id` int(11) NULL DEFAULT NULL COMMENT '关联病历ID',
+  `patient_id` int(11) NULL DEFAULT NULL COMMENT '患者ID',
+  `doctor_id` int(11) NULL DEFAULT NULL COMMENT '开方医生ID',
+  `type` tinyint(4) NULL DEFAULT 0 COMMENT '处方类型: 0=西药, 1=中药',
+  `status` tinyint(4) NULL DEFAULT 0 COMMENT '状态: 0=待取药, 1=已取药, 2=已退药',
+  `create_time` datetime(0) NULL DEFAULT CURRENT_TIMESTAMP(0) COMMENT '创建时间',
+  `update_time` datetime(0) NULL DEFAULT CURRENT_TIMESTAMP(0) ON UPDATE CURRENT_TIMESTAMP(0) COMMENT '更新时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_medical_record_id` (`medical_record_id`) USING BTREE,
+  INDEX `idx_patient_id` (`patient_id`) USING BTREE,
+  INDEX `idx_doctor_id` (`doctor_id`) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Dynamic;
+
+DROP TABLE IF EXISTS `prescription_item`;
+CREATE TABLE `prescription_item` (
+  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `prescription_id` int(11) NULL DEFAULT NULL COMMENT '关联处方ID',
+  `drug_name` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '药品名称',
+  `specification` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '规格',
+  `quantity` int(11) NULL DEFAULT NULL COMMENT '数量',
+  `dosage` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '用法用量',
+  `frequency` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '频次',
+  `days` int(11) NULL DEFAULT NULL COMMENT '天数',
+  `remark` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '备注',
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_prescription_id` (`prescription_id`) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Dynamic;
+
 -- 清理旧数据
 DELETE FROM prescription_item;
 DELETE FROM prescription;

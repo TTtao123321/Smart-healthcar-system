@@ -74,7 +74,7 @@ def guard_in(state: AgentState) -> dict:
 
 
 async def agent(state: AgentState, tools: list) -> dict:
-    """LLM 推理节点 — 异步调用 LLM 决定直接回答或调用工具"""
+    """LLM 推理节点 — 内部处理工具调用循环"""
     messages = state.get("messages", [])
 
     # 如果护栏已拦截，不再调用 LLM
@@ -82,36 +82,60 @@ async def agent(state: AgentState, tools: list) -> dict:
     if guardrail_result in ("diagnosis_request", "report_interpretation", "high_emergency"):
         return {}
 
-    # 构建消息列表
+    # 构建消息列表，添加 SystemMessage
     system_msg = SystemMessage(content=SYSTEM_PROMPT)
     llm_messages = [system_msg] + list(messages)
 
-    # 获取 LLM 实例
+    # 获取 LLM 实例（绑定工具）
     llm = _get_llm(tools if tools else None)
 
-    # 异步调用
+    # 异步调用 LLM
     response = await llm.ainvoke(llm_messages)
+
+    # 如果 LLM 调用了工具，执行工具并将结果作为上下文再次调用 LLM
+    if isinstance(response, AIMessage) and response.tool_calls:
+        # 构建工具名称到函数的映射
+        tool_map = {t.name: t for t in tools}
+
+        # 执行工具调用
+        for tool_call in response.tool_calls:
+            tool_name = tool_call["name"]
+            tool_args = tool_call["args"]
+            if tool_name in tool_map:
+                try:
+                    tool_result = await tool_map[tool_name].ainvoke(tool_args)
+                    # 将工具结果作为 HumanMessage 添加到消息列表
+                    llm_messages.append(AIMessage(
+                        content="",
+                        tool_calls=[tool_call],
+                    ))
+                    llm_messages.append(HumanMessage(
+                        content=f"工具 {tool_name} 返回结果：\n{tool_result}"
+                    ))
+                except Exception as e:
+                    logger.error(f"工具 {tool_name} 执行失败: {e}")
+                    llm_messages.append(HumanMessage(
+                        content=f"工具 {tool_name} 执行失败：{str(e)}"
+                    ))
+            else:
+                llm_messages.append(HumanMessage(
+                    content=f"未知工具：{tool_name}"
+                ))
+
+        # 再次调用 LLM（不带工具），生成最终回复
+        llm_no_tools = _get_llm()
+        response = await llm_no_tools.ainvoke(llm_messages)
 
     return {"messages": [response]}
 
 
 def should_continue(state: AgentState) -> str:
     """路由函数 — 决定 agent 节点后的走向"""
-    messages = state.get("messages", [])
-    if not messages:
-        return "end"
-
-    last_message = messages[-1]
-
-    # 如果护栏拦截，直接结束
+    # 如果护栏拦截需要转人工，直接转人工
     if state.get("needs_handoff"):
         return "handoff"
 
-    # 如果 LLM 调用了工具，执行工具
-    if isinstance(last_message, AIMessage) and last_message.tool_calls:
-        return "tools"
-
-    # 否则直接结束
+    # 否则正常结束
     return "end"
 
 

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Maven 镜像加速配置模板。
+  Dockerfile 在 build 阶段会用 sed 把 __MAVEN_MIRROR_URL__ 替换为传入的 MAVEN_MIRROR_URL。
+  若未传入,则不写入 settings.xml,直接走 Maven 中央仓库。
+  常用国内源示例:https://maven.aliyun.com/repository/public
+-->
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 http://maven.apache.org/xsd/settings-1.0.0.xsd">
+  <mirrors>
+    <mirror>
+      <id>mirror</id>
+      <mirrorOf>central</mirrorOf>
+      <name>configured mirror</name>
+      <url>__MAVEN_MIRROR_URL__</url>
+    </mirror>
+  </mirrors>
+</settings>

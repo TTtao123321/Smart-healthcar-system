@@ -38,6 +38,7 @@ class DoctorService:
         payload = {
             "page": request.page,
             "length": request.page_size,
+            "status": 1,  # 1=在职，必填字段
         }
         if request.name:
             payload["name"] = request.name

@@ -46,11 +46,13 @@ class HmsClient:
 
         try:
             response = await self._http.post(
-                "/login",
+                "/user/login",
                 json={"username": username, "password": password},
             )
             data = response.json()
             token = data.get("token", "")
+            if not token:
+                token = data.get("result", {}).get("token", "")
             if token:
                 self._sa_token = token
                 self._http.headers["satoken"] = token

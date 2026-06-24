@@ -443,7 +443,7 @@ SYSTEM_PROMPT = """你是XX医院智慧服务助手，仅提供就医流程引�
 
 ### Docker 集成
 
-在现有 `docker-compose.yml` 中新增 patient_agent_backend 服务：
+已在项目根目录 [docker-compose.yml](file:///Users/bytedance/Desktop/mywork/Smart-healthcar-system/docker-compose.yml) 中新增 patient_agent_backend 服务(单 compose 一键启动方案,见 [.trae/documents/docker-one-click-startup-plan.md](file:///Users/bytedance/Desktop/mywork/.trae/documents/docker-one-click-startup-plan.md)):
 
 ```yaml
 patient_agent_backend:

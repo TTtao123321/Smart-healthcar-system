@@ -1,7 +1,6 @@
 """LangGraph 图定义与构建"""
 
 from langgraph.graph import END, StateGraph
-from langgraph.prebuilt import ToolNode
 
 from app.agent.nodes import agent, guard_in, guard_out, handoff, should_continue
 from app.agent.state import AgentState
@@ -15,32 +14,29 @@ def build_graph() -> StateGraph:
     """构建 Agent 状态图"""
     graph = StateGraph(AgentState)
 
-    # 异步包装：将 agent 节点与工具绑定
+    # 异步包装：将 agent 节点与工具绑定（内部处理工具调用循环）
     async def agent_with_tools(state):
         return await agent(state, tools_module.ALL_TOOLS)
 
     # 添加节点
     graph.add_node("guard_in", guard_in)
     graph.add_node("agent", agent_with_tools)
-    graph.add_node("tools", ToolNode(tools_module.ALL_TOOLS))
     graph.add_node("guard_out", guard_out)
     graph.add_node("handoff", handoff)
 
     # 设置入口
     graph.set_entry_point("guard_in")
 
-    # 添加边
+    # 添加边：agent 内部处理工具调用，只需判断是否需要转人工
     graph.add_edge("guard_in", "agent")
     graph.add_conditional_edges(
         "agent",
         should_continue,
         {
-            "tools": "tools",
             "handoff": "handoff",
             "end": "guard_out",
         },
     )
-    graph.add_edge("tools", "guard_out")
     graph.add_edge("guard_out", END)
     graph.add_edge("handoff", END)
 
