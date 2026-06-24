@@ -680,6 +680,31 @@ img {
 .chat-sidebar::-webkit-scrollbar { width: 4px; }
 .chat-sidebar::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
 
+.patient-sidebar {
+  width: 300px;
+  min-width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+}
+
+.patient-card,
+.schedule-card {
+  background: #FFFFFF;
+  border: 1px solid #D9E2EC;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  padding: 20px;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.patient-workbench-card,
+.schedule-workbench-card {
+  overflow: hidden;
+}
+
 .sidebar-header {
   display: flex;
   align-items: center;
@@ -695,6 +720,216 @@ img {
 .text-rose { color: #F43F5E; }
 .text-amber { color: #F59E0B; }
 .text-purple { color: #8B5CF6; }
+
+.patient-visit-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.patient-card-title,
+.patient-visit-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1E293B;
+}
+
+.patient-card-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #EFF6FF;
+  color: #2563EB;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.patient-card-hint,
+.schedule-loading {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #F8FBFD;
+  color: #64748B;
+  font-size: 12px;
+  border: 1px solid #E2E8F0;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.patient-card-state-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.patient-identity-panel {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #E2E8F0;
+  box-sizing: border-box;
+}
+
+.patient-identity-main {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.patient-identity-eyebrow {
+  font-size: 13px;
+  color: #334155;
+}
+
+.patient-identity-name {
+  font-size: 24px;
+  line-height: 1.15;
+  font-weight: 700;
+  color: #0F172A;
+  letter-spacing: 0.01em;
+  overflow-wrap: anywhere;
+}
+
+.patient-identity-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.patient-status-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid #BFDBFE;
+  background: #EFF6FF;
+  color: #1D4ED8;
+  font-size: 12px;
+  font-weight: 600;
+  box-sizing: border-box;
+}
+
+.patient-status-tag-muted {
+  border-color: #D9E2EC;
+  background: #F8FBFD;
+  color: #475569;
+}
+
+.patient-record-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+  box-sizing: border-box;
+}
+
+.patient-record-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #F8FBFD;
+  border: 1px solid #E2E8F0;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.patient-record-key {
+  font-size: 11px;
+  color: #64748B;
+  letter-spacing: 0.03em;
+}
+
+.patient-record-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0F172A;
+  overflow-wrap: anywhere;
+}
+
+.patient-visit-section {
+  padding-top: 16px;
+  border-top: 1px solid #E2E8F0;
+  box-sizing: border-box;
+}
+
+.patient-visit-caption {
+  font-size: 12px;
+  color: #94A3B8;
+  flex-shrink: 0;
+}
+
+.recent-visits-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.recent-visit-summary {
+  padding: 12px;
+  border-radius: 12px;
+  background: #F8FBFD;
+  border: 1px solid #E2E8F0;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.recent-visit-summary-date {
+  font-size: 12px;
+  font-weight: 600;
+  color: #0F172A;
+  margin-bottom: 6px;
+}
+
+.recent-visit-summary-body {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+  color: #64748B;
+}
+
+.recent-visit-summary-dept,
+.recent-visit-summary-doctor {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.recent-visit-summary-divider {
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: #94A3B8;
+  flex-shrink: 0;
+}
+
+.recent-visits-empty {
+  margin-top: 12px;
+  padding: 16px;
+  border-radius: 14px;
+  text-align: center;
+  font-size: 13px;
+  color: #94A3B8;
+  background: #F8FBFD;
+  border: 1px dashed #CBD5E1;
+  box-sizing: border-box;
+}
 
 .new-chat-btn {
   display: flex;
@@ -1168,52 +1403,130 @@ img {
 }
 
 /* ========== SCHEDULE PANEL ========== */
+.schedule-card {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.schedule-workbench-header {
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.schedule-workbench-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.schedule-workbench-caption {
+  font-size: 11px;
+  color: #64748B;
+  flex-shrink: 0;
+}
+
 .schedule-date {
   font-size: 12px;
   color: #64748B;
   text-align: center;
   margin-bottom: 16px;
   padding: 6px 12px;
-  background: #F0F9FF;
-  border-radius: 8px;
+  background: #F8FBFD;
+  border-radius: 10px;
+  border: 1px solid #E2E8F0;
   flex-shrink: 0;
+  box-sizing: border-box;
 }
 
-.dept-tabs {
+.schedule-dept-nav {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
   margin-bottom: 16px;
   flex-shrink: 0;
 }
 
-.dept-tab {
+.schedule-dept-nav-item,
+.doctor-workbench-card,
+.schedule-placeholder,
+.schedule-empty {
+  box-sizing: border-box;
+  min-width: 0;
+  border-radius: 12px;
+}
+
+.schedule-dept-nav-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: none;
-  background: #F8FAFC;
-  color: #64748B;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid #D9E2EC;
+  background: #F8FBFD;
+  color: #334155;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
   font-family: inherit;
   text-align: left;
   width: 100%;
+  overflow: hidden;
 }
-.dept-tab:hover { background: #F0F9FF; color: #0EA5E9; }
-.dept-tab.active { background: linear-gradient(135deg, #F0F9FF, #E0F2FE); color: #0EA5E9; font-weight: 600; }
 
-.dept-count {
-  margin-left: auto;
-  font-size: 11px;
-  color: #94A3B8;
-  background: #fff;
+.schedule-dept-nav-item:hover {
+  border-color: #93C5FD;
+  background: #F0F7FF;
+}
+
+.schedule-dept-nav-item.active {
+  border-color: #2563EB;
+  background: #EFF6FF;
+  color: #1D4ED8;
+}
+
+.schedule-dept-nav-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.schedule-dept-nav-meta {
+  flex-shrink: 0;
   padding: 2px 8px;
-  border-radius: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #D9E2EC;
+  font-size: 11px;
+  color: #64748B;
+}
+
+.schedule-workbench-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.schedule-current-dept {
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid #E2E8F0;
+  background: #F8FBFD;
+}
+
+.schedule-current-dept-label {
+  font-size: 11px;
+  color: #64748B;
+  margin-bottom: 4px;
+}
+
+.schedule-current-dept-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0F172A;
+  overflow-wrap: anywhere;
 }
 
 .schedule-list {
@@ -1234,6 +1547,18 @@ img {
   justify-content: center;
   padding: 48px 20px;
   gap: 16px;
+  border: 1px dashed #CBD5E1;
+  background: #F8FBFD;
+  min-height: 168px;
+}
+
+.schedule-empty {
+  padding: 24px 16px;
+  border: 1px dashed #CBD5E1;
+  background: #F8FBFD;
+  font-size: 13px;
+  color: #94A3B8;
+  text-align: center;
 }
 
 .schedule-placeholder .placeholder-icon {
@@ -1246,29 +1571,29 @@ img {
   margin: 0;
   text-align: center;
   line-height: 1.6;
+  overflow-wrap: anywhere;
 }
 
-.doctor-card {
-  background: #F8FAFC;
-  border-radius: 12px;
+.doctor-workbench-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
   padding: 14px;
-  border: 1px solid #F1F5F9;
-  transition: box-shadow 0.2s;
+  border: 1px solid #E2E8F0;
+  background: #FFFFFF;
 }
-.doctor-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
 
-.doctor-header {
+.doctor-workbench-header {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 8px;
 }
 
 .doctor-avatar {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #38BDF8, #0EA5E9);
+  background: linear-gradient(135deg, #2563EB, #0EA5E9);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1278,15 +1603,36 @@ img {
   flex-shrink: 0;
 }
 
-.doctor-info { flex: 1; min-width: 0; }
-.doctor-name { font-size: 14px; font-weight: 600; color: #1E293B; }
-.doctor-title { font-size: 11px; color: #0EA5E9; margin-top: 2px; }
+.doctor-workbench-main {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.doctor-workbench-heading {
+  min-width: 0;
+}
+
+.doctor-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0F172A;
+  overflow-wrap: anywhere;
+}
+
+.doctor-title {
+  font-size: 12px;
+  color: #2563EB;
+  margin-top: 2px;
+}
 
 .doctor-bio {
   font-size: 12px;
   color: #64748B;
   line-height: 1.5;
-  margin: 0 0 10px;
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .doctor-times {
@@ -1300,7 +1646,7 @@ img {
 .time-slot {
   font-size: 11px;
   color: #475569;
-  background: #fff;
+  background: #F8FBFD;
   padding: 3px 8px;
   border-radius: 6px;
   border: 1px solid #E2E8F0;
@@ -1308,10 +1654,10 @@ img {
 
 .register-btn {
   width: 100%;
-  height: 34px;
+  min-height: 38px;
   border: none;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #0EA5E9, #0284C7);
+  border-radius: 10px;
+  background: linear-gradient(135deg, #2563EB, #0284C7);
   color: #fff;
   font-size: 13px;
   font-weight: 600;
@@ -1346,11 +1692,30 @@ img {
   animation: modal-slide-up 0.25s ease-out;
 }
 
+.modal-workbench-card,
+.patient-card-hint,
+.schedule-loading,
+.schedule-placeholder,
+.schedule-empty {
+  box-sizing: border-box;
+  border-radius: 14px;
+}
+
+.modal-workbench-card {
+  border: 1px solid #D9E2EC;
+  background: #FFFFFF;
+  overflow: hidden;
+}
+
 .modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 20px 24px 16px;
+}
+
+.modal-workbench-header {
+  border-bottom: 1px solid #E2E8F0;
 }
 
 .modal-title {
@@ -1374,14 +1739,20 @@ img {
 
 .modal-body { padding: 0 24px 20px; }
 
+.modal-workbench-body {
+  padding-top: 16px;
+}
+
 .modal-doctor {
   display: flex;
   align-items: center;
   gap: 14px;
   padding: 16px;
-  background: #F8FAFC;
+  background: #F8FBFD;
   border-radius: 12px;
   margin-bottom: 16px;
+  border: 1px solid #E2E8F0;
+  box-sizing: border-box;
 }
 
 .modal-avatar {
@@ -1399,9 +1770,9 @@ img {
 }
 
 .modal-doctor-info { flex: 1; }
-.modal-doctor-name { font-size: 15px; font-weight: 600; color: #1E293B; }
+.modal-doctor-name { font-size: 15px; font-weight: 600; color: #1E293B; overflow-wrap: anywhere; }
 .modal-doctor-title { font-size: 12px; color: #0EA5E9; margin-top: 2px; }
-.modal-dept { font-size: 12px; color: #64748B; margin-top: 2px; }
+.modal-dept { font-size: 12px; color: #64748B; margin-top: 2px; overflow-wrap: anywhere; }
 
 .modal-details {
   display: flex;
@@ -1413,14 +1784,19 @@ img {
 .modal-row {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 16px;
   padding: 0 4px;
 }
 
 .modal-label { font-size: 13px; color: #94A3B8; }
-.modal-value { font-size: 13px; color: #334155; font-weight: 500; }
+.modal-value { font-size: 13px; color: #334155; font-weight: 500; text-align: right; overflow-wrap: anywhere; }
 
 .modal-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   font-size: 12px;
   color: #94A3B8;
   text-align: center;
@@ -1435,7 +1811,7 @@ img {
   display: flex;
   gap: 10px;
   padding: 16px 24px;
-  border-top: 1px solid #F1F5F9;
+  border-top: 1px solid #E2E8F0;
 }
 
 .modal-btn {
