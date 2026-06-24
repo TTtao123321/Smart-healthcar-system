@@ -34,7 +34,7 @@ def _get_llm(tools: list | None = None) -> ChatOpenAI:
             model=settings.openai_model,
             api_key=settings.openai_api_key,
             base_url=settings.openai_base_url,
-            temperature=0.3,
+            temperature=0.0,
         )
     return _llm
 
@@ -96,31 +96,50 @@ async def agent(state: AgentState, tools: list) -> dict:
     if isinstance(response, AIMessage) and response.tool_calls:
         # 构建工具名称到函数的映射
         tool_map = {t.name: t for t in tools}
+        has_empty_result = False
 
         # 执行工具调用
         for tool_call in response.tool_calls:
             tool_name = tool_call["name"]
             tool_args = tool_call["args"]
+            if not tool_name:
+                logger.warning(f"忽略空工具名的 tool_call: {tool_call}")
+                continue
             if tool_name in tool_map:
                 try:
                     tool_result = await tool_map[tool_name].ainvoke(tool_args)
+                    # 检查工具返回是否为空
+                    tool_result_str = str(tool_result)
+                    if not tool_result_str or tool_result_str in ("[]", "{}", '""', "null", "None"):
+                        has_empty_result = True
+                        tool_result_str = "查询结果为空，数据库中暂无相关数据"
                     # 将工具结果作为 HumanMessage 添加到消息列表
                     llm_messages.append(AIMessage(
                         content="",
                         tool_calls=[tool_call],
                     ))
                     llm_messages.append(HumanMessage(
-                        content=f"工具 {tool_name} 返回结果：\n{tool_result}"
+                        content=f"工具 {tool_name} 返回结果：\n{tool_result_str}"
                     ))
                 except Exception as e:
                     logger.error(f"工具 {tool_name} 执行失败: {e}")
+                    has_empty_result = True
                     llm_messages.append(HumanMessage(
-                        content=f"工具 {tool_name} 执行失败：{str(e)}"
+                        content=f"工具 {tool_name} 执行失败：{str(e)}。请告知用户系统暂时无法查询该信息，不要编造任何数据。"
                     ))
             else:
                 llm_messages.append(HumanMessage(
-                    content=f"未知工具：{tool_name}"
+                    content=f"未知工具：{tool_name}，请告知用户暂时无法处理该请求。"
                 ))
+
+        # 添加数据真实性提醒
+        llm_messages.append(HumanMessage(
+            content=(
+                "【重要提醒】请基于以上工具返回的真实数据生成回复。"
+                "如果工具返回结果为空或查询失败，你必须如实告知用户'暂时无法获取该信息，请稍后再试'。"
+                "严禁编造任何科室名称、医生姓名、职称、地址等医院信息。"
+            )
+        ))
 
         # 再次调用 LLM（不带工具），生成最终回复
         llm_no_tools = _get_llm()
