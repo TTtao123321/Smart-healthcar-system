@@ -107,6 +107,10 @@ async def chat_stream(request: Request):
         raise HTTPException(status_code=400, detail="消息不能为空")
 
     async def event_generator() -> AsyncGenerator[dict, None]:
+        # 设置当前请求上下文，供工具调用获取
+        from app.agent.request_context import set_patient_id
+        set_patient_id(patient_id)
+
         memory = get_memory()
         history = await memory.load_messages(patient_id, thread_id)
 

@@ -108,12 +108,22 @@ async def agent(state: AgentState, tools: list) -> dict:
             if tool_name in tool_map:
                 try:
                     tool_result = await tool_map[tool_name].ainvoke(tool_args)
-                    # 检查工具返回是否为空
                     tool_result_str = str(tool_result)
-                    if not tool_result_str or tool_result_str in ("[]", "{}", '""', "null", "None"):
-                        has_empty_result = True
-                        tool_result_str = "查询结果为空，数据库中暂无相关数据"
-                    # 将工具结果作为 HumanMessage 添加到消息列表
+                    # 工具现在统一返回 JSON {ok, summary/error, data, hint}，
+                    # 工具内部已捕获所有异常，这里仅识别 ok=false 用于后续提示
+                    import json as _json
+                    try:
+                        parsed = _json.loads(tool_result_str)
+                        if isinstance(parsed, dict) and parsed.get("ok") is False:
+                            has_empty_result = True
+                        elif isinstance(parsed, dict) and parsed.get("data") in ([], None, {}):
+                            has_empty_result = True
+                    except (_json.JSONDecodeError, TypeError):
+                        # 兼容旧格式
+                        if not tool_result_str or tool_result_str in ("[]", "{}", '""', "null", "None"):
+                            has_empty_result = True
+                            tool_result_str = "查询结果为空，数据库中暂无相关数据"
+
                     llm_messages.append(AIMessage(
                         content="",
                         tool_calls=[tool_call],
