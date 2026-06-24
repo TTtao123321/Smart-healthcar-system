@@ -368,18 +368,9 @@ function ChatPage({ user, onLogout }) {
         buffer = lines.pop() || ''
 
         for (const line of lines) {
-          if (line.startsWith('event:message')) {
-            currentEvent = 'message'
-          } else if (line.startsWith('event:thinking')) {
-            currentEvent = 'thinking'
-          } else if (line.startsWith('event:done')) {
-            currentEvent = 'done'
-          } else if (line.startsWith('event:error')) {
-            currentEvent = 'error'
-          } else if (line.startsWith('event:tool_start')) {
-            currentEvent = 'tool_start'
-          } else if (line.startsWith('event:tool_end')) {
-            currentEvent = 'tool_end'
+          if (line.startsWith('event:')) {
+            // 兼容 "event: name" 和 "event:name" 两种格式
+            currentEvent = line.slice(6).trim()
           } else if (line.startsWith('data:')) {
             const jsonStr = line.slice(5).trim()
             if (!jsonStr) continue
