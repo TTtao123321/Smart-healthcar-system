@@ -145,6 +145,47 @@ async def chat_stream(request: Request):
                             ),
                         }
 
+                elif kind == "on_tool_start":
+                    tool_name = event.get("name", "unknown")
+                    tool_input = event.get("data", {}).get("input", {})
+                    run_id = event.get("run_id", "")
+                    # 将不可序列化的参数转为字符串
+                    safe_args = {}
+                    for k, v in tool_input.items():
+                        try:
+                            json.dumps(v)
+                            safe_args[k] = v
+                        except (TypeError, ValueError):
+                            safe_args[k] = str(v)
+                    yield {
+                        "event": "tool_start",
+                        "data": json.dumps(
+                            {
+                                "tool_call_id": run_id,
+                                "tool_name": tool_name,
+                                "tool_args": safe_args,
+                            },
+                            ensure_ascii=False,
+                        ),
+                    }
+
+                elif kind == "on_tool_end":
+                    tool_name = event.get("name", "unknown")
+                    run_id = event.get("run_id", "")
+                    output = event.get("data", {}).get("output")
+                    if output is not None:
+                        yield {
+                            "event": "tool_end",
+                            "data": json.dumps(
+                                {
+                                    "tool_call_id": run_id,
+                                    "tool_name": tool_name,
+                                    "tool_result": str(output),
+                                },
+                                ensure_ascii=False,
+                            ),
+                        }
+
             # 保存对话历史
             history.append({"role": "user", "content": user_message})
             history.append({"role": "assistant", "content": full_response})
