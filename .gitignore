@@ -63,6 +63,9 @@ skills-lock.json
 # === IDE Agent ===
 .trae/
 
+# === Git worktrees ===
+.worktrees/
+
 # === Backup / temp files ===
 *.bak
 *.tmp
