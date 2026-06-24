@@ -173,18 +173,33 @@ async def chat_stream(request: Request):
                     tool_name = event.get("name", "unknown")
                     run_id = event.get("run_id", "")
                     output = event.get("data", {}).get("output")
-                    if output is not None:
-                        yield {
-                            "event": "tool_end",
-                            "data": json.dumps(
-                                {
-                                    "tool_call_id": run_id,
-                                    "tool_name": tool_name,
-                                    "tool_result": str(output),
-                                },
-                                ensure_ascii=False,
-                            ),
-                        }
+                    yield {
+                        "event": "tool_end",
+                        "data": json.dumps(
+                            {
+                                "tool_call_id": run_id,
+                                "tool_name": tool_name,
+                                "tool_result": str(output) if output is not None else "",
+                            },
+                            ensure_ascii=False,
+                        ),
+                    }
+
+                elif kind == "on_tool_error":
+                    tool_name = event.get("name", "unknown")
+                    run_id = event.get("run_id", "")
+                    err = event.get("data", {}).get("error") or event.get("data", {}).get("output")
+                    yield {
+                        "event": "tool_end",
+                        "data": json.dumps(
+                            {
+                                "tool_call_id": run_id,
+                                "tool_name": tool_name,
+                                "tool_error": str(err) if err is not None else "工具调用失败",
+                            },
+                            ensure_ascii=False,
+                        ),
+                    }
 
             # 保存对话历史
             history.append({"role": "user", "content": user_message})
