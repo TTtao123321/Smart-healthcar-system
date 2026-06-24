@@ -40,6 +40,18 @@ const STORAGE_KEYS = {
   MESSAGES: 'patient_messages',
 }
 
+const TOOL_NAME_MAP = {
+  query_departments: '查询科室列表',
+  query_dept_detail: '查询科室详情',
+  query_doctors: '查询医生列表',
+  query_doctor_detail: '查询医生详情',
+  query_doctor_schedules: '查询医生排班',
+  query_schedule_detail: '查询排班详情',
+  create_registration: '创建挂号',
+  query_registration: '查询挂号',
+  cancel_registration: '取消挂号',
+}
+
 function loadFromStorage(key, fallback) {
   try {
     const raw = localStorage.getItem(key)
@@ -319,7 +331,7 @@ function ChatPage({ user, onLogout }) {
 
     const userMsg = { id: Date.now(), role: 'user', text, time: new Date() }
     const aiMsgId = Date.now() + 1
-    const aiMsg = { id: aiMsgId, role: 'ai', text: '', time: new Date(), streaming: true }
+    const aiMsg = { id: aiMsgId, role: 'ai', text: '', time: new Date(), streaming: true, toolCalls: [] }
 
     setMessagesMap(prev => ({
       ...prev,
@@ -359,6 +371,10 @@ function ChatPage({ user, onLogout }) {
             // Stream complete
           } else if (line.startsWith('event:error')) {
             // Next data line has error
+          } else if (line.startsWith('event:tool_start')) {
+            // Next data line is tool call start info
+          } else if (line.startsWith('event:tool_end')) {
+            // Next data line is tool call end info
           } else if (line.startsWith('data:')) {
             const jsonStr = line.slice(5).trim()
             if (!jsonStr) continue
@@ -370,6 +386,46 @@ function ChatPage({ user, onLogout }) {
                   ...prev,
                   [receivedThreadId]: prev[receivedThreadId].map(m =>
                     m.id === aiMsgId ? { ...m, text: fullText } : m
+                  ),
+                }))
+              }
+              if (data.tool_call_id && data.tool_name && data.tool_args) {
+                // tool_start
+                setMessagesMap(prev => ({
+                  ...prev,
+                  [receivedThreadId]: prev[receivedThreadId].map(m =>
+                    m.id === aiMsgId ? {
+                      ...m,
+                      toolCalls: [
+                        ...(m.toolCalls || []),
+                        {
+                          toolCallId: data.tool_call_id,
+                          toolName: data.tool_name,
+                          toolArgs: data.tool_args,
+                          status: 'running',
+                        },
+                      ],
+                    } : m
+                  ),
+                }))
+              } else if (data.tool_call_id && data.tool_name && (data.tool_result !== undefined || data.tool_error !== undefined)) {
+                // tool_end
+                setMessagesMap(prev => ({
+                  ...prev,
+                  [receivedThreadId]: prev[receivedThreadId].map(m =>
+                    m.id === aiMsgId ? {
+                      ...m,
+                      toolCalls: (m.toolCalls || []).map(tc =>
+                        tc.toolCallId === data.tool_call_id
+                          ? {
+                              ...tc,
+                              status: data.tool_error ? 'error' : 'success',
+                              toolResult: data.tool_result,
+                              toolError: data.tool_error,
+                            }
+                          : tc
+                      ),
+                    } : m
                   ),
                 }))
               }
