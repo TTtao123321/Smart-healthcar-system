@@ -2,6 +2,7 @@
 
 import json
 import logging
+import re
 import uuid
 from typing import AsyncGenerator
 
@@ -130,6 +131,9 @@ async def chat_stream(request: Request):
             graph = compile_graph()
             # 流式执行
             full_response = ""
+            # 思考模式状态机
+            think_state = "outside"  # outside | inside
+            think_buffer = ""  # 跨 chunk 缓冲（用于检测被切断的标签）
             async for event in graph.astream_events(state, version="v2"):
                 kind = event.get("event", "")
 
@@ -137,13 +141,69 @@ async def chat_stream(request: Request):
                     chunk = event.get("data", {}).get("chunk")
                     if chunk and hasattr(chunk, "content") and chunk.content:
                         full_response += chunk.content
-                        yield {
-                            "event": "message",
-                            "data": json.dumps(
-                                {"content": chunk.content, "thread_id": thread_id},
-                                ensure_ascii=False,
-                            ),
-                        }
+                        # 将新 chunk 拼接到缓冲，解析 <think>/</think> 标签
+                        think_buffer += chunk.content
+                        # 持续解析缓冲区，直到无法再切分
+                        while True:
+                            if think_state == "outside":
+                                idx = think_buffer.find("<think>")
+                                if idx == -1:
+                                    # 没有 <think>，但要防止半截标签如 "<thin" 被作为 message 发送
+                                    # 保留末尾最多 len("<think>")-1=6 个字符作为可能的标签前缀
+                                    safe_len = max(len(think_buffer) - 6, 0)
+                                    if safe_len > 0:
+                                        emit = think_buffer[:safe_len]
+                                        think_buffer = think_buffer[safe_len:]
+                                        yield {
+                                            "event": "message",
+                                            "data": json.dumps(
+                                                {"content": emit, "thread_id": thread_id},
+                                                ensure_ascii=False,
+                                            ),
+                                        }
+                                    break
+                                else:
+                                    # 发送 <think> 之前的内容作为 message
+                                    if idx > 0:
+                                        emit = think_buffer[:idx]
+                                        yield {
+                                            "event": "message",
+                                            "data": json.dumps(
+                                                {"content": emit, "thread_id": thread_id},
+                                                ensure_ascii=False,
+                                            ),
+                                        }
+                                    think_buffer = think_buffer[idx + len("<think>"):]
+                                    think_state = "inside"
+                            else:  # inside
+                                idx = think_buffer.find("</think>")
+                                if idx == -1:
+                                    # 保留末尾最多 len("</think>")-1=7 个字符
+                                    safe_len = max(len(think_buffer) - 7, 0)
+                                    if safe_len > 0:
+                                        emit = think_buffer[:safe_len]
+                                        think_buffer = think_buffer[safe_len:]
+                                        yield {
+                                            "event": "thinking",
+                                            "data": json.dumps(
+                                                {"content": emit, "thread_id": thread_id},
+                                                ensure_ascii=False,
+                                            ),
+                                        }
+                                    break
+                                else:
+                                    # 发送 </think> 之前的内容作为 thinking
+                                    if idx > 0:
+                                        emit = think_buffer[:idx]
+                                        yield {
+                                            "event": "thinking",
+                                            "data": json.dumps(
+                                                {"content": emit, "thread_id": thread_id},
+                                                ensure_ascii=False,
+                                            ),
+                                        }
+                                    think_buffer = think_buffer[idx + len("</think>"):]
+                                    think_state = "outside"
 
                 elif kind == "on_tool_start":
                     tool_name = event.get("name", "unknown")
@@ -201,9 +261,31 @@ async def chat_stream(request: Request):
                         ),
                     }
 
+            # 流结束后，刷新缓冲区残留内容
+            if think_buffer:
+                if think_state == "outside":
+                    yield {
+                        "event": "message",
+                        "data": json.dumps(
+                            {"content": think_buffer, "thread_id": thread_id},
+                            ensure_ascii=False,
+                        ),
+                    }
+                else:
+                    yield {
+                        "event": "thinking",
+                        "data": json.dumps(
+                            {"content": think_buffer, "thread_id": thread_id},
+                            ensure_ascii=False,
+                        ),
+                    }
+                think_buffer = ""
+
             # 保存对话历史
             history.append({"role": "user", "content": user_message})
-            history.append({"role": "assistant", "content": full_response})
+            # 保存到历史的内容应该去掉 <think>...</think> 部分
+            clean_response = re.sub(r"<think>.*?</think>", "", full_response, flags=re.DOTALL).strip()
+            history.append({"role": "assistant", "content": clean_response})
             await memory.save_messages(patient_id, thread_id, history)
 
             yield {

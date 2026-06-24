@@ -5,7 +5,7 @@ import {
   LogOut, Trash2, Send, Shield, Eye, EyeOff,
   MessageSquare, Plus, MessageCircle, UserCircle,
   Calendar, Clock, Stethoscope, ChevronDown, ChevronUp, X,
-  Loader, XCircle
+  Loader, XCircle, Brain, Sparkles
 } from 'lucide-react'
 
 const ToastContext = createContext(null)
@@ -332,7 +332,7 @@ function ChatPage({ user, onLogout }) {
 
     const userMsg = { id: Date.now(), role: 'user', text, time: new Date() }
     const aiMsgId = Date.now() + 1
-    const aiMsg = { id: aiMsgId, role: 'ai', text: '', time: new Date(), streaming: true, toolCalls: [] }
+    const aiMsg = { id: aiMsgId, role: 'ai', text: '', time: new Date(), streaming: true, toolCalls: [], thinking: '' }
 
     setMessagesMap(prev => ({
       ...prev,
@@ -355,6 +355,8 @@ function ChatPage({ user, onLogout }) {
       const decoder = new TextDecoder()
       let buffer = ''
       let fullText = ''
+      let fullThinking = ''
+      let currentEvent = ''
       let receivedThreadId = threadId
 
       while (true) {
@@ -367,21 +369,31 @@ function ChatPage({ user, onLogout }) {
 
         for (const line of lines) {
           if (line.startsWith('event:message')) {
-            // Next data line is message content
+            currentEvent = 'message'
+          } else if (line.startsWith('event:thinking')) {
+            currentEvent = 'thinking'
           } else if (line.startsWith('event:done')) {
-            // Stream complete
+            currentEvent = 'done'
           } else if (line.startsWith('event:error')) {
-            // Next data line has error
+            currentEvent = 'error'
           } else if (line.startsWith('event:tool_start')) {
-            // Next data line is tool call start info
+            currentEvent = 'tool_start'
           } else if (line.startsWith('event:tool_end')) {
-            // Next data line is tool call end info
+            currentEvent = 'tool_end'
           } else if (line.startsWith('data:')) {
             const jsonStr = line.slice(5).trim()
             if (!jsonStr) continue
             try {
               const data = JSON.parse(jsonStr)
-              if (data.content !== undefined) {
+              if (currentEvent === 'thinking' && data.content !== undefined) {
+                fullThinking += data.content
+                setMessagesMap(prev => ({
+                  ...prev,
+                  [receivedThreadId]: prev[receivedThreadId].map(m =>
+                    m.id === aiMsgId ? { ...m, thinking: fullThinking } : m
+                  ),
+                }))
+              } else if (currentEvent === 'message' && data.content !== undefined) {
                 fullText += data.content
                 setMessagesMap(prev => ({
                   ...prev,
@@ -390,8 +402,7 @@ function ChatPage({ user, onLogout }) {
                   ),
                 }))
               }
-              if (data.tool_call_id && data.tool_name && data.tool_args) {
-                // tool_start
+              if (currentEvent === 'tool_start' && data.tool_call_id && data.tool_name && data.tool_args) {
                 setMessagesMap(prev => ({
                   ...prev,
                   [receivedThreadId]: prev[receivedThreadId].map(m =>
@@ -409,8 +420,7 @@ function ChatPage({ user, onLogout }) {
                     } : m
                   ),
                 }))
-              } else if (data.tool_call_id && data.tool_name && (data.tool_result !== undefined || data.tool_error !== undefined)) {
-                // tool_end
+              } else if (currentEvent === 'tool_end' && data.tool_call_id && data.tool_name) {
                 setMessagesMap(prev => ({
                   ...prev,
                   [receivedThreadId]: prev[receivedThreadId].map(m =>
@@ -841,6 +851,45 @@ function WelcomeScreen({ setInput }) {
   )
 }
 
+function ThinkingBar({ thinking, isStreaming }) {
+  const [expanded, setExpanded] = useState(true)
+  const [autoCollapsed, setAutoCollapsed] = useState(false)
+
+  // 流式结束后自动折叠一次
+  useEffect(() => {
+    if (!isStreaming && !autoCollapsed && thinking) {
+      setExpanded(false)
+      setAutoCollapsed(true)
+    }
+  }, [isStreaming, thinking, autoCollapsed])
+
+  if (!thinking) return null
+
+  return (
+    <div className="thinking-bar">
+      <div className="thinking-header" onClick={() => setExpanded(!expanded)}>
+        <Brain size={14} className={isStreaming ? 'thinking-icon thinking-icon-active' : 'thinking-icon'} />
+        <span className="thinking-title">
+          {isStreaming ? (
+            <>思考中<span className="thinking-dots"><span>.</span><span>.</span><span>.</span></span></>
+          ) : '思考过程'}
+        </span>
+        {expanded ? (
+          <ChevronUp size={14} className="thinking-chevron" />
+        ) : (
+          <ChevronDown size={14} className="thinking-chevron" />
+        )}
+      </div>
+      {expanded && (
+        <div className="thinking-content">
+          {thinking}
+          {isStreaming && <span className="thinking-cursor" />}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function ToolCallBar({ toolCalls }) {
   const [expandedId, setExpandedId] = useState(null)
 
@@ -942,6 +991,9 @@ function ChatBubble({ msg, isStreaming, isLast }) {
         {isAI ? <Shield size={15} className="text-white" /> : <User size={15} className="text-white" />}
       </div>
       <div className={`max-w-[72%] ${isAI ? '' : 'flex flex-col items-end'}`}>
+        {isAI && msg.thinking && (
+          <ThinkingBar thinking={msg.thinking} isStreaming={!!msg.streaming} />
+        )}
         {isAI && msg.toolCalls && msg.toolCalls.length > 0 && (
           <ToolCallBar toolCalls={msg.toolCalls} />
         )}
