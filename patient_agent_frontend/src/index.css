@@ -687,6 +687,7 @@ img {
   flex-direction: column;
   gap: 16px;
   min-height: 0;
+  overflow: hidden;
 }
 
 .patient-card,
@@ -703,6 +704,23 @@ img {
 .patient-workbench-card,
 .schedule-workbench-card {
   overflow: hidden;
+}
+
+.patient-profile-card {
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: clamp(260px, 42vh, 420px);
+}
+
+.patient-profile-scroll {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .sidebar-header {
@@ -1402,6 +1420,28 @@ img {
   .chat-layout { padding: 10px; gap: 10px; }
 }
 
+@media (max-height: 820px) {
+  .patient-card,
+  .schedule-card {
+    padding: 16px;
+  }
+
+  .patient-identity-panel {
+    padding-bottom: 12px;
+    margin-bottom: 12px;
+  }
+
+  .patient-visit-section {
+    padding-top: 12px;
+  }
+
+  .patient-record-grid,
+  .recent-visits-list,
+  .schedule-list {
+    gap: 10px;
+  }
+}
+
 /* ========== SCHEDULE PANEL ========== */
 .schedule-card {
   display: flex;
@@ -1440,12 +1480,25 @@ img {
   box-sizing: border-box;
 }
 
+.schedule-body-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
 .schedule-dept-nav {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-bottom: 16px;
   flex-shrink: 0;
+  flex: 0 0 auto;
+  min-height: 0;
+  max-height: clamp(92px, 24vh, 168px);
+  overflow-y: auto;
 }
 
 .schedule-dept-nav-item,
@@ -1506,6 +1559,7 @@ img {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  flex: 0 0 auto;
   min-height: 0;
 }
 
@@ -1514,6 +1568,7 @@ img {
   border-radius: 12px;
   border: 1px solid #E2E8F0;
   background: #F8FBFD;
+  flex-shrink: 0;
 }
 
 .schedule-current-dept-label {
@@ -1529,13 +1584,47 @@ img {
   overflow-wrap: anywhere;
 }
 
+.schedule-current-dept-intro {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #475569;
+  line-height: 1.6;
+}
+
+.schedule-current-dept-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.schedule-current-dept-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+}
+
+.schedule-current-dept-stat-label {
+  font-size: 11px;
+  color: #64748B;
+}
+
+.schedule-current-dept-stat-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0F172A;
+}
+
 .schedule-list {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  flex: 1;
+  flex: 0 0 auto;
   min-height: 0;
-  overflow-y: auto;
 }
 .schedule-list::-webkit-scrollbar { width: 4px; }
 .schedule-list::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }

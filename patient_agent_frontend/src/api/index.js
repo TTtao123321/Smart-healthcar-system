@@ -49,11 +49,11 @@ export const authApi = {
 
 export const chatApi = {
   /** 发送消息（完整响应） */
-  send(message, patientId, threadId) {
-    return api.post('/chat', { message, patient_id: patientId, thread_id: threadId })
+  send(message, threadId) {
+    return api.post('/chat', { message, thread_id: threadId })
   },
   /** 发送消息（SSE 流式） */
-  sendStream(message, patientId, threadId) {
+  sendStream(message, threadId) {
     return fetch('/api/chat/stream', {
       method: 'POST',
       headers: {
@@ -62,12 +62,26 @@ export const chatApi = {
           ? { Authorization: `Bearer ${localStorage.getItem('patient_token')}` }
           : {}),
       },
-      body: JSON.stringify({ message, patient_id: patientId, thread_id: threadId }),
+      body: JSON.stringify({ message, thread_id: threadId }),
     })
   },
   /** 获取对话历史 */
-  getHistory(patientId, threadId) {
-    return api.get('/chat/history', { params: { patient_id: patientId, thread_id: threadId } })
+  getHistory(threadId) {
+    return api.get('/chat/history', { params: { thread_id: threadId } })
+  },
+}
+
+// ============ 患者档案 ============
+
+export const patientApi = {
+  getProfile() {
+    return api.get('/patient/profile')
+  },
+  getSidebar() {
+    return api.get('/patient/sidebar')
+  },
+  updateProfile(payload) {
+    return api.post('/patient/profile', payload)
   },
 }
 

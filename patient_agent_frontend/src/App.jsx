@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, createContext, useContext, useRef } from 'react'
 import { authApi, chatApi } from './api/index.js'
+import PatientSidebar from './components/sidebar/PatientSidebar.jsx'
 import {
   User, Lock, CheckCircle, ArrowRight,
   LogOut, Trash2, Send, Shield, Eye, EyeOff,
@@ -282,7 +283,7 @@ function ChatPage({ user, onLogout }) {
     // Load history from backend if no local messages
     if (!messagesMap[threadId] || messagesMap[threadId].length === 0) {
       try {
-        const res = await chatApi.getHistory(String(user.patient_id), threadId)
+        const res = await chatApi.getHistory(threadId)
         const historyMsgs = (res.data.messages || []).map((m, i) => ({
           id: `${threadId}-hist-${i}`,
           role: m.role === 'assistant' ? 'ai' : m.role,
@@ -294,7 +295,7 @@ function ChatPage({ user, onLogout }) {
         // silently ignore, use empty messages
       }
     }
-  }, [user.patient_id, messagesMap, currentThreadId])
+  }, [messagesMap, currentThreadId])
 
   const deleteThread = useCallback((threadId) => {
     setThreads(prev => prev.filter(t => t.id !== threadId))
@@ -345,7 +346,7 @@ function ChatPage({ user, onLogout }) {
     setAiThinking(true)
 
     try {
-      const response = await chatApi.sendStream(text, String(user.patient_id), threadId)
+      const response = await chatApi.sendStream(text, threadId)
 
       if (!response.ok) {
         throw new Error(`请求失败: ${response.status}`)
@@ -478,7 +479,7 @@ function ChatPage({ user, onLogout }) {
       setAiThinking(false)
       setStreamingMsgId(null)
     }
-  }, [input, aiThinking, currentThreadId, user.patient_id, createNewThread, updateThreadMeta, showToast])
+  }, [input, aiThinking, currentThreadId, createNewThread, updateThreadMeta, showToast])
 
 
 
@@ -522,7 +523,7 @@ function ChatPage({ user, onLogout }) {
           hasThread={!!currentThreadId}
           transitionKey={transitionKey}
         />
-        <RightPanel user={user} onSendChat={handleSend} />
+        <PatientSidebar user={user} onSendChat={handleSend} />
       </div>
     </div>
   )
@@ -606,152 +607,6 @@ function LeftPanel({ threads, currentThreadId, onNewChat, onSwitchThread, onDele
     </div>
   )
 }
-
-function RightPanel({ user, onSendChat }) {
-  const [expandedDept, setExpandedDept] = useState(null)
-  const [confirmDoctor, setConfirmDoctor] = useState(null)
-  const showToast = useToast()
-
-  const handleRegister = (doctor) => {
-    setConfirmDoctor(doctor)
-  }
-
-  const handleConfirm = () => {
-    const deptForConfirm = expandedDept !== null ? scheduleData[expandedDept].name : confirmDoctor.dept
-    setConfirmDoctor(null)
-    // Send chat message instead of mock behavior
-    onSendChat(`我要预约挂号：${deptForConfirm} · ${confirmDoctor.name}（${confirmDoctor.title}）`)
-  }
-
-  const deptName = expandedDept !== null ? scheduleData[expandedDept].name : ''
-
-  return (
-    <div className="chat-sidebar">
-      <div className="sidebar-header">
-        <Calendar size={18} className="text-sky" />
-        <span>今日排班</span>
-      </div>
-      <div className="schedule-date">2025年6月15日 周一</div>
-      <div className="dept-tabs">
-        {scheduleData.map((dept, i) => (
-          <button key={i} onClick={() => setExpandedDept(expandedDept === i ? null : i)}
-            className={`dept-tab ${expandedDept === i ? 'active' : ''}`}>
-            <Stethoscope size={14} />
-            <span>{dept.name}</span>
-            <span className="dept-count">{dept.doctors.length}位</span>
-          </button>
-        ))}
-      </div>
-      <div className="schedule-list">
-        {expandedDept === null ? (
-          <div className="schedule-placeholder">
-            <Stethoscope size={32} className="placeholder-icon" />
-            <p className="placeholder-text">点击具体科室查看排班信息</p>
-          </div>
-        ) : (
-          scheduleData[expandedDept].doctors.map((doctor, i) => (
-            <div key={i} className="doctor-card">
-              <div className="doctor-header">
-                <div className="doctor-avatar">{doctor.name[0]}</div>
-                <div className="doctor-info">
-                  <div className="doctor-name">{doctor.name}</div>
-                  <div className="doctor-title">{doctor.title}</div>
-                </div>
-              </div>
-              <p className="doctor-bio">{doctor.bio}</p>
-              <div className="doctor-times">
-                <Clock size={13} className="text-sky" />
-                {doctor.timeSlots.map((slot, j) => (
-                  <span key={j} className="time-slot">{slot}</span>
-                ))}
-              </div>
-              <button onClick={() => handleRegister(doctor)} className="register-btn">
-                预约挂号
-              </button>
-            </div>
-          ))
-        )}
-      </div>
-
-      {confirmDoctor && (
-        <div className="modal-overlay" onClick={() => setConfirmDoctor(null)}>
-          <div className="modal-card" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <span className="modal-title">确认挂号信息</span>
-              <button onClick={() => setConfirmDoctor(null)} className="modal-close">
-                <X size={18} />
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="modal-doctor">
-                <div className="modal-avatar">{confirmDoctor.name[0]}</div>
-                <div className="modal-doctor-info">
-                  <div className="modal-doctor-name">{confirmDoctor.name}</div>
-                  <div className="modal-doctor-title">{confirmDoctor.title}</div>
-                  <div className="modal-dept">{deptName}</div>
-                </div>
-              </div>
-              <div className="modal-details">
-                <div className="modal-row">
-                  <span className="modal-label">就诊日期</span>
-                  <span className="modal-value">2025年6月15日 周一</span>
-                </div>
-                <div className="modal-row">
-                  <span className="modal-label">出诊时段</span>
-                  <span className="modal-value">{confirmDoctor.timeSlots.join(' / ')}</span>
-                </div>
-                <div className="modal-row">
-                  <span className="modal-label">就诊科室</span>
-                  <span className="modal-value">{deptName}</span>
-                </div>
-                <div className="modal-row">
-                  <span className="modal-label">就诊患者</span>
-                  <span className="modal-value">{user.name}</span>
-                </div>
-              </div>
-              <p className="modal-note">确认后将通过AI助手提交挂号申请</p>
-            </div>
-            <div className="modal-footer">
-              <button onClick={() => setConfirmDoctor(null)} className="modal-btn modal-btn-cancel">取消</button>
-              <button onClick={handleConfirm} className="modal-btn modal-btn-confirm">确认挂号</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-
-const scheduleData = [
-  {
-    name: '内科',
-    doctors: [
-      { name: '张明华', title: '主任医师', bio: '擅长心血管疾病诊疗，30年临床经验', timeSlots: ['08:00-12:00', '14:00-17:00'] },
-      { name: '李芳', title: '副主任医师', bio: '呼吸系统疾病专家，擅长慢性病管理', timeSlots: ['08:00-12:00'] },
-    ]
-  },
-  {
-    name: '外科',
-    doctors: [
-      { name: '王建国', title: '主任医师', bio: '普外科及微创手术专家', timeSlots: ['09:00-12:00', '14:00-18:00'] },
-      { name: '赵雪梅', title: '主治医师', bio: '骨科与运动损伤康复', timeSlots: ['14:00-17:00'] },
-    ]
-  },
-  {
-    name: '儿科',
-    doctors: [
-      { name: '陈小慧', title: '副主任医师', bio: '儿童呼吸及消化系统疾病', timeSlots: ['08:30-12:00', '14:00-16:30'] },
-    ]
-  },
-  {
-    name: '妇产科',
-    doctors: [
-      { name: '刘美玲', title: '主任医师', bio: '高危妊娠管理及妇科微创手术', timeSlots: ['08:00-12:00', '14:00-17:30'] },
-    ]
-  },
-]
-
 
 function ChatWindow({ messages, aiThinking, streamingMsgId, input, setInput, onSend, messagesEndRef, hasThread, transitionKey }) {
   const [time, setTime] = useState(new Date())
