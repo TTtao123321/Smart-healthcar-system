@@ -154,6 +154,11 @@ services:
     ports: ["8001:8000"]
     environment:
       HMS_API_URL: http://hospital_hms_api:9091/hms
+      HMS_DB_HOST: mysql
+      HMS_DB_PORT: 3306
+      HMS_DB_NAME: fm_hospital
+      HMS_DB_USER: root
+      HMS_DB_PASSWORD: 123456
       REDIS_URL: redis://:123456@redis:6379/1
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
@@ -172,6 +177,8 @@ services:
     working_dir: /app
     command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
     ports: ["5174:5174"]
+    environment:
+      VITE_API_BASE: http://patient_agent_backend:8000
     volumes:
       - ./patient_agent_frontend:/app
       - /app/node_modules

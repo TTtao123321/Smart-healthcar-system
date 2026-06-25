@@ -1,6 +1,7 @@
 """LangGraph 图节点实现"""
 
 import logging
+import re
 from typing import Any
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
@@ -44,6 +45,30 @@ def reset_llm() -> None:
     global _llm, _llm_with_tools
     _llm = None
     _llm_with_tools = None
+
+
+def recover_tool_call(user_content: str) -> dict[str, Any] | None:
+    """在模型返回空工具名时，按现有关键词规则回退到稳定工具调用。"""
+    text = (user_content or "").strip()
+    if not text:
+        return None
+
+    if any(keyword in text for keyword in ("有哪些科室", "科室列表")):
+        return {"name": "query_departments", "args": {}}
+
+    if any(keyword in text for keyword in ("我的挂号", "我挂的号", "挂号记录", "看看我挂的")):
+        return {"name": "query_registration", "args": {}}
+
+    if any(keyword in text for keyword in ("哪些医生", "找医生", "出诊")):
+        dept_match = re.search(r"([\u4e00-\u9fa5]{1,12}科)", text)
+        if dept_match:
+            return {
+                "name": "query_doctors",
+                "args": {"dept_name": dept_match.group(1)},
+            }
+        return {"name": "query_doctors", "args": {}}
+
+    return None
 
 
 def guard_in(state: AgentState) -> dict:
@@ -91,20 +116,40 @@ async def agent(state: AgentState, tools: list) -> dict:
 
     # 异步调用 LLM
     response = await llm.ainvoke(llm_messages)
+    last_user_content = ""
+    for message in reversed(messages):
+        if isinstance(message, HumanMessage):
+            last_user_content = str(message.content)
+            break
 
     # 如果 LLM 调用了工具，执行工具并将结果作为上下文再次调用 LLM
     if isinstance(response, AIMessage) and response.tool_calls:
         # 构建工具名称到函数的映射
         tool_map = {t.name: t for t in tools}
-        has_empty_result = False
+        normalized_tool_calls = []
+
+        for tool_call in response.tool_calls:
+            if tool_call.get("name"):
+                normalized_tool_calls.append(tool_call)
+                continue
+
+            recovered = recover_tool_call(last_user_content)
+            if recovered:
+                fixed_tool_call = {**tool_call, **recovered}
+                logger.warning(f"空工具名已按关键词规则回退: {fixed_tool_call}")
+                normalized_tool_calls.append(fixed_tool_call)
+            else:
+                logger.warning(f"忽略空工具名的 tool_call: {tool_call}")
+
+        if not normalized_tool_calls:
+            return {
+                "messages": [AIMessage(content="系统暂时无法处理该请求，请稍后再试。")]
+            }
 
         # 执行工具调用
-        for tool_call in response.tool_calls:
+        for tool_call in normalized_tool_calls:
             tool_name = tool_call["name"]
             tool_args = tool_call["args"]
-            if not tool_name:
-                logger.warning(f"忽略空工具名的 tool_call: {tool_call}")
-                continue
             if tool_name in tool_map:
                 try:
                     tool_result = await tool_map[tool_name].ainvoke(tool_args)
@@ -124,23 +169,30 @@ async def agent(state: AgentState, tools: list) -> dict:
                             has_empty_result = True
                             tool_result_str = "查询结果为空，数据库中暂无相关数据"
 
-                    llm_messages.append(AIMessage(
-                        content="",
-                        tool_calls=[tool_call],
-                    ))
-                    llm_messages.append(HumanMessage(
-                        content=f"工具 {tool_name} 返回结果：\n{tool_result_str}"
-                    ))
+                    llm_messages.append(
+                        AIMessage(
+                            content="",
+                            tool_calls=[tool_call],
+                        )
+                    )
+                    llm_messages.append(
+                        HumanMessage(
+                            content=f"工具 {tool_name} 返回结果：\n{tool_result_str}"
+                        )
+                    )
                 except Exception as e:
                     logger.error(f"工具 {tool_name} 执行失败: {e}")
-                    has_empty_result = True
-                    llm_messages.append(HumanMessage(
-                        content=f"工具 {tool_name} 执行失败：{str(e)}。请告知用户系统暂时无法查询该信息，不要编造任何数据。"
-                    ))
+                    llm_messages.append(
+                        HumanMessage(
+                            content=f"工具 {tool_name} 执行失败：{str(e)}。请告知用户系统暂时无法查询该信息，不要编造任何数据。"
+                        )
+                    )
             else:
-                llm_messages.append(HumanMessage(
-                    content=f"未知工具：{tool_name}，请告知用户暂时无法处理该请求。"
-                ))
+                llm_messages.append(
+                    HumanMessage(
+                        content=f"未知工具：{tool_name}，请告知用户暂时无法处理该请求。"
+                    )
+                )
 
         # 添加数据真实性提醒
         llm_messages.append(HumanMessage(

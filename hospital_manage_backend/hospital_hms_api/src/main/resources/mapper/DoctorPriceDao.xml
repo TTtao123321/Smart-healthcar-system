@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hospital.hms.dao.DoctorPriceDao">
+
+    <select id="selectByPageCount" parameterType="map" resultType="java.lang.Long">
+        SELECT COUNT(dp.id)
+        FROM doctor_price dp
+        JOIN doctor d ON dp.doctor_id = d.id
+        LEFT JOIN medical_dept_sub_doctor mdsd ON mdsd.doctor_id = d.id
+        LEFT JOIN medical_dept_sub mds ON mdsd.dept_sub_id = mds.id
+        LEFT JOIN medical_dept md ON mds.dept_id = md.id
+        WHERE 1 = 1
+        <if test="name != null">
+            AND d.name LIKE CONCAT('%', #{name}, '%')
+        </if>
+        <if test="deptId != null">
+            AND md.id = #{deptId}
+        </if>
+        <if test="job != null">
+            AND d.job = #{job}
+        </if>
+        <if test="status != null">
+            AND d.status = #{status}
+        </if>
+    </select>
+
+    <select id="selectByPage" parameterType="map" resultType="java.util.HashMap">
+        SELECT
+            d.name AS doctorName,
+            d.sex AS sex,
+            d.job AS job,
+            md.name AS deptName,
+            mds.name AS deptSubName,
+            dp.price_1 AS price_1,
+            dp.price_2 AS price_2,
+            dp.doctor_id AS doctorId,
+            dp.id AS id,
+            dp.level AS level
+        FROM doctor_price dp
+        JOIN doctor d ON dp.doctor_id = d.id
+        LEFT JOIN medical_dept_sub_doctor mdsd ON mdsd.doctor_id = d.id
+        LEFT JOIN medical_dept_sub mds ON mdsd.dept_sub_id = mds.id
+        LEFT JOIN medical_dept md ON mds.dept_id = md.id
+        WHERE 1 = 1
+        <if test="name != null">
+            AND d.name LIKE CONCAT('%', #{name}, '%')
+        </if>
+        <if test="deptId != null">
+            AND md.id = #{deptId}
+        </if>
+        <if test="job != null">
+            AND d.job = #{job}
+        </if>
+        <if test="status != null">
+            AND d.status = #{status}
+        </if>
+        <if test="order != null">
+            ORDER BY md.id ${order}
+        </if>
+        LIMIT #{length} OFFSET #{start}
+    </select>
+
+    <insert id="insert" parameterType="com.hospital.hms.pojo.DoctorPrice">
+        INSERT INTO doctor_price (doctor_id, level, price_1, price_2)
+        VALUES (#{doctorId}, #{level}, #{price_1}, #{price_2})
+    </insert>
+
+    <update id="update" parameterType="map">
+        UPDATE doctor_price
+        SET price_1 = #{price_1},
+            price_2 = #{price_2},
+            level = #{level}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteByIds">
+        DELETE FROM doctor_price
+        WHERE id IN
+        <foreach collection="array" open="(" item="one" separator="," close=")">
+            #{one}
+        </foreach>
+    </delete>
+
+</mapper>

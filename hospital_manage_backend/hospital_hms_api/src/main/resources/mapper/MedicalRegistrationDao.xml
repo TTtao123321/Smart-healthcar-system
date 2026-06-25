@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hospital.hms.dao.MedicalRegistrationDao">
+
+    <insert id="insert" parameterType="com.hospital.hms.pojo.MedicalRegistration" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO medical_registration
+        (patient_card_id, work_plan_id, doctor_schedule_id, doctor_id, dept_sub_id, date, slot, status, payment_status)
+        VALUES
+        (#{patientCardId}, #{workPlanId}, #{doctorScheduleId}, #{doctorId}, #{deptSubId},
+         STR_TO_DATE(#{date}, '%Y-%m-%d'), #{slot}, #{status}, #{paymentStatus})
+    </insert>
+
+    <select id="selectScheduleById" parameterType="integer" resultType="java.util.HashMap">
+        SELECT maximum, num
+        FROM doctor_work_plan_schedule
+        WHERE id = #{doctorScheduleId}
+        LIMIT 1
+    </select>
+
+    <update id="increaseScheduleNum" parameterType="integer">
+        UPDATE doctor_work_plan_schedule
+        SET num = num + 1
+        WHERE id = #{doctorScheduleId}
+    </update>
+
+</mapper>

@@ -3,17 +3,25 @@
 import logging
 from contextlib import asynccontextmanager
 
+import aiomysql
 import redis.asyncio as aioredis
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.agent.graph import compile_graph, reset_graph
+from app.auth.dependencies import set_auth_service_getter as set_auth_dependency_getter
+from app.auth.service import AuthService
 from app.api import auth as auth_module
 from app.api.auth import router as auth_router
 from app.api.chat import router as chat_router, set_memory
+from app.api.patient import router as patient_router
 from app.config.settings import settings
 from app.hms_client import HmsClient
 from app.memory.redis_memory import RedisMemory
+from app.patient_profile.repository import PatientProfileRepository
+from app.patient_profile.service import PatientProfileService
+from app.patient_sidebar.schedule_gateway import PatientScheduleGateway
+from app.patient_sidebar.service import PatientSidebarService
 from app.tools import init_tools
 
 logger = logging.getLogger(__name__)
@@ -45,6 +53,32 @@ async def lifespan(app: FastAPI):
     redis_client = aioredis.from_url(settings.redis_url, decode_responses=True)
     app.state.redis = redis_client
 
+    # 初始化 HMS MySQL
+    mysql_pool = await aiomysql.create_pool(
+        host=settings.hms_db_host,
+        port=settings.hms_db_port,
+        user=settings.hms_db_user,
+        password=settings.hms_db_password,
+        db=settings.hms_db_name,
+        autocommit=True,
+    )
+    app.state.mysql_pool = mysql_pool
+
+    patient_profile_repository = PatientProfileRepository(mysql_pool)
+    patient_profile_service = PatientProfileService(patient_profile_repository)
+    auth_service = AuthService(redis_client)
+    patient_sidebar_service = PatientSidebarService(
+        profile_service=patient_profile_service,
+        registration_service=hms_client.registration_service,
+        schedule_gateway=PatientScheduleGateway(
+            dept_service=hms_client.dept_service,
+            doctor_service=hms_client.doctor_service,
+        ),
+    )
+    app.state.patient_profile_service = patient_profile_service
+    app.state.auth_service = auth_service
+    app.state.patient_sidebar_service = patient_sidebar_service
+
     # 初始化对话记忆
     memory = RedisMemory()
     await memory.connect()
@@ -54,6 +88,10 @@ async def lifespan(app: FastAPI):
 
     # 初始化认证模块 Redis
     auth_module.set_redis(redis_client)
+    auth_module.set_patient_profile_service_getter(lambda: app.state.patient_profile_service)
+    auth_module.set_auth_service_getter(lambda: app.state.auth_service)
+    auth_module.set_patient_sidebar_service_getter(lambda: app.state.patient_sidebar_service)
+    set_auth_dependency_getter(lambda: app.state.auth_service)
     logger.info("认证模块初始化完成")
 
     logger.info("patient_agent_backend 启动完成")
@@ -64,6 +102,8 @@ async def lifespan(app: FastAPI):
     logger.info("正在关闭 patient_agent_backend...")
     await hms_client.close()
     await memory.close()
+    mysql_pool.close()
+    await mysql_pool.wait_closed()
     await redis_client.close()
     logger.info("patient_agent_backend 已关闭")
 
@@ -87,6 +127,7 @@ app.add_middleware(
 # 注册路由
 app.include_router(auth_router)
 app.include_router(chat_router)
+app.include_router(patient_router)
 
 
 @app.get("/health")

@@ -6,10 +6,13 @@ import re
 import uuid
 from typing import AsyncGenerator
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from langchain_core.messages import AIMessage, HumanMessage
 from sse_starlette.sse import EventSourceResponse
 
+from app.agent.request_context import set_patient_session
+from app.auth.dependencies import require_patient_session
+from app.auth.models import PatientSession
 from app.agent.graph import compile_graph
 from app.agent.state import AgentState
 from app.memory.redis_memory import RedisMemory
@@ -34,15 +37,17 @@ def get_memory() -> RedisMemory:
 
 
 @router.post("")
-async def chat(request: Request):
+async def chat(request: Request, session: PatientSession = Depends(require_patient_session)):
     """发送消息，返回完整响应"""
     body = await request.json()
     user_message = body.get("message", "")
-    patient_id = body.get("patient_id", "anonymous")
+    patient_id = session.patient_id
     thread_id = body.get("thread_id", str(uuid.uuid4()))
 
     if not user_message.strip():
         raise HTTPException(status_code=400, detail="消息不能为空")
+
+    set_patient_session(session)
 
     # 加载对话历史
     memory = get_memory()
@@ -96,11 +101,11 @@ async def chat(request: Request):
 
 
 @router.post("/stream")
-async def chat_stream(request: Request):
+async def chat_stream(request: Request, session: PatientSession = Depends(require_patient_session)):
     """发送消息，SSE 流式返回"""
     body = await request.json()
     user_message = body.get("message", "")
-    patient_id = body.get("patient_id", "anonymous")
+    patient_id = session.patient_id
     thread_id = body.get("thread_id", str(uuid.uuid4()))
 
     if not user_message.strip():
@@ -108,8 +113,7 @@ async def chat_stream(request: Request):
 
     async def event_generator() -> AsyncGenerator[dict, None]:
         # 设置当前请求上下文，供工具调用获取
-        from app.agent.request_context import set_patient_id
-        set_patient_id(patient_id)
+        set_patient_session(session)
 
         memory = get_memory()
         history = await memory.load_messages(patient_id, thread_id)
@@ -134,17 +138,19 @@ async def chat_stream(request: Request):
         try:
             graph = compile_graph()
             # 流式执行
-            full_response = ""
+            visible_response = ""
             # 思考模式状态机
             think_state = "outside"  # outside | inside
             think_buffer = ""  # 跨 chunk 缓冲（用于检测被切断的标签）
+            tool_started = False
+            pending_pre_tool_message = ""
+
             async for event in graph.astream_events(state, version="v2"):
                 kind = event.get("event", "")
 
                 if kind == "on_chat_model_stream":
                     chunk = event.get("data", {}).get("chunk")
                     if chunk and hasattr(chunk, "content") and chunk.content:
-                        full_response += chunk.content
                         # 将新 chunk 拼接到缓冲，解析 <think>/</think> 标签
                         think_buffer += chunk.content
                         # 持续解析缓冲区，直到无法再切分
@@ -158,25 +164,33 @@ async def chat_stream(request: Request):
                                     if safe_len > 0:
                                         emit = think_buffer[:safe_len]
                                         think_buffer = think_buffer[safe_len:]
-                                        yield {
-                                            "event": "message",
-                                            "data": json.dumps(
-                                                {"content": emit, "thread_id": thread_id},
-                                                ensure_ascii=False,
-                                            ),
-                                        }
+                                        if not tool_started:
+                                            pending_pre_tool_message += emit
+                                        else:
+                                            visible_response += emit
+                                            yield {
+                                                "event": "message",
+                                                "data": json.dumps(
+                                                    {"content": emit, "thread_id": thread_id},
+                                                    ensure_ascii=False,
+                                                ),
+                                            }
                                     break
                                 else:
                                     # 发送 <think> 之前的内容作为 message
                                     if idx > 0:
                                         emit = think_buffer[:idx]
-                                        yield {
-                                            "event": "message",
-                                            "data": json.dumps(
-                                                {"content": emit, "thread_id": thread_id},
-                                                ensure_ascii=False,
-                                            ),
-                                        }
+                                        if not tool_started:
+                                            pending_pre_tool_message += emit
+                                        else:
+                                            visible_response += emit
+                                            yield {
+                                                "event": "message",
+                                                "data": json.dumps(
+                                                    {"content": emit, "thread_id": thread_id},
+                                                    ensure_ascii=False,
+                                                ),
+                                            }
                                     think_buffer = think_buffer[idx + len("<think>"):]
                                     think_state = "inside"
                             else:  # inside
@@ -210,6 +224,22 @@ async def chat_stream(request: Request):
                                     think_state = "outside"
 
                 elif kind == "on_tool_start":
+                    tool_started = True
+                    if pending_pre_tool_message.strip():
+                        cleaned_reasoning = re.sub(
+                            r"^\s*think[:：]?\s*",
+                            "",
+                            pending_pre_tool_message,
+                            flags=re.IGNORECASE,
+                        )
+                        yield {
+                            "event": "thinking",
+                            "data": json.dumps(
+                                {"content": cleaned_reasoning, "thread_id": thread_id},
+                                ensure_ascii=False,
+                            ),
+                        }
+                        pending_pre_tool_message = ""
                     tool_name = event.get("name", "unknown")
                     tool_input = event.get("data", {}).get("input", {})
                     run_id = event.get("run_id", "")
@@ -268,13 +298,17 @@ async def chat_stream(request: Request):
             # 流结束后，刷新缓冲区残留内容
             if think_buffer:
                 if think_state == "outside":
-                    yield {
-                        "event": "message",
-                        "data": json.dumps(
-                            {"content": think_buffer, "thread_id": thread_id},
-                            ensure_ascii=False,
-                        ),
-                    }
+                    if not tool_started:
+                        pending_pre_tool_message += think_buffer
+                    else:
+                        visible_response += think_buffer
+                        yield {
+                            "event": "message",
+                            "data": json.dumps(
+                                {"content": think_buffer, "thread_id": thread_id},
+                                ensure_ascii=False,
+                            ),
+                        }
                 else:
                     yield {
                         "event": "thinking",
@@ -285,10 +319,20 @@ async def chat_stream(request: Request):
                     }
                 think_buffer = ""
 
+            if not tool_started and pending_pre_tool_message.strip():
+                visible_response += pending_pre_tool_message
+                yield {
+                    "event": "message",
+                    "data": json.dumps(
+                        {"content": pending_pre_tool_message, "thread_id": thread_id},
+                        ensure_ascii=False,
+                    ),
+                }
+                pending_pre_tool_message = ""
+
             # 保存对话历史
             history.append({"role": "user", "content": user_message})
-            # 保存到历史的内容应该去掉 <think>...</think> 部分
-            clean_response = re.sub(r"<think>.*?</think>", "", full_response, flags=re.DOTALL).strip()
+            clean_response = visible_response.strip()
             history.append({"role": "assistant", "content": clean_response})
             await memory.save_messages(patient_id, thread_id, history)
 
@@ -311,13 +355,15 @@ async def chat_stream(request: Request):
 
 @router.get("/history")
 async def chat_history(
-    patient_id: str = "anonymous",
     thread_id: str = "",
+    session: PatientSession = Depends(require_patient_session),
 ):
     """获取对话历史"""
     if not thread_id:
         return {"messages": []}
 
+    patient_id = session.patient_id
+    set_patient_session(session)
     memory = get_memory()
     messages = await memory.load_messages(patient_id, thread_id)
     return {"messages": messages, "thread_id": thread_id}

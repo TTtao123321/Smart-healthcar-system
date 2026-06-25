@@ -112,3 +112,23 @@ class DeptService:
                 name=item.get("name", ""),
             ))
         return items
+
+    async def list_sub_depts(self, dept_id: int) -> list[SubDeptItem]:
+        """根据科室查询诊室列表
+
+        对接 HMS: GET /medical/dept/sub/selectByDeptId
+        """
+        data = await self._client.get(
+            "/medical/dept/sub/selectByDeptId",
+            params={"deptId": dept_id},
+        )
+
+        items = []
+        for item in data.get("list", []):
+            items.append(SubDeptItem(
+                id=item.get("id", 0),
+                name=item.get("name", ""),
+                dept_id=item.get("deptId", item.get("dept_id", dept_id)),
+                location=item.get("location", ""),
+            ))
+        return items

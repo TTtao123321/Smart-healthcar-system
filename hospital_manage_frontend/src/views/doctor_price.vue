@@ -93,7 +93,7 @@
 					<el-button
 						type="text"
 						v-if="isAuth(['ROOT', 'MEDICAL:UPDATE'])"
-						@click="updateHandle(scope.row.doctorId, scope.row.price_1, scope.row.price_2, scope.row.job)"
+						@click="updateHandle(scope.row)"
 					>
 						调整价格
 					</el-button>
@@ -143,10 +143,75 @@ export default {
 		};
 	},
 	methods: {
-		
+		loadDataList: function() {
+			let that = this;
+			that.dataListLoading = true;
+			let json = { 在职: 1, 离职: 2, 退休: 3 };
+			let data = {
+				page: that.pageIndex,
+				length: that.pageSize,
+				name: that.dataForm.name == '' ? null : that.dataForm.name,
+				deptId: that.dataForm.deptId == '' ? null : that.dataForm.deptId,
+				job: that.dataForm.job == '' ? null : that.dataForm.job,
+				status: json[that.dataForm.status],
+				order: that.dataForm.order
+			};
+			that.$http('/doctor_price/selectByPage', 'POST', data, true, function(resp) {
+				let result = resp.result;
+				that.dataList = result.list;
+				that.totalCount = result.totalCount;
+				that.dataListLoading = false;
+			});
+		},
+		loadMedicalDeptList: function() {
+			let that = this;
+			that.$http('/medical/dept/selectAllDeptNameAndId', 'GET', {}, true, function(resp) {
+				that.medicalDeptList = resp.result;
+			});
+		},
+		searchHandle: function() {
+			this.$refs['dataForm'].validate(valid => {
+				if (valid) {
+					this.$refs['dataForm'].clearValidate();
+					if (this.pageIndex != 1) {
+						this.pageIndex = 1;
+					}
+					this.loadDataList();
+				} else {
+					return false;
+				}
+			});
+		},
+		sizeChangeHandle: function(val) {
+			this.pageSize = val;
+			this.pageIndex = 1;
+			this.loadDataList();
+		},
+		currentChangeHandle: function(val) {
+			this.pageIndex = val;
+			this.loadDataList();
+		},
+		orderHandle: function(param) {
+			let order = param.order;
+			if (order == 'ascending') {
+				this.dataForm.order = 'ASC';
+			} else if (order == 'descending') {
+				this.dataForm.order = 'DESC';
+			} else {
+				return;
+			}
+			this.dataList = [];
+			this.loadDataList();
+		},
+		updateHandle: function(row) {
+			this.$nextTick(() => {
+				this.$refs.update.init(row);
+			});
+		}
 	},
 	created: function() {
-		
+		this.loadDataList();
+		this.loadMedicalDeptList();
 	}
 };
 </script>

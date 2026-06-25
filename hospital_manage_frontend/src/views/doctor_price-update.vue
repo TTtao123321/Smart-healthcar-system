@@ -29,6 +29,7 @@ export default {
 		return {
 			visible: false,
 			dataForm: {
+				id: null,
 				doctorId: null,
 				price_1: null,
 				price_2: null,
@@ -48,7 +49,36 @@ export default {
 	},
 
 	methods: {
-		
+		init: function(row) {
+			let that = this;
+			that.visible = true;
+			that.$nextTick(() => {
+				if (that.$refs.dataForm) {
+					that.$refs.dataForm.resetFields();
+				}
+				that.dataForm.id = row.id;
+				that.dataForm.doctorId = row.doctorId;
+				that.dataForm.price_1 = row.price_1;
+				that.dataForm.price_2 = row.price_2;
+				that.dataForm.level = row.job || row.level;
+			});
+		},
+		dataFormSubmit: function() {
+			let that = this;
+			that.$refs['dataForm'].validate(valid => {
+				if (!valid) return false;
+				let data = {
+					id: that.dataForm.id,
+					level: that.dataForm.level,
+					price_1: that.dataForm.price_1,
+					price_2: that.dataForm.price_2
+				};
+				that.$http('/doctor_price/update', 'POST', data, true, function(resp) {
+					that.visible = false;
+					that.$emit('refreshDataList');
+				});
+			});
+		}
 	}
 };
 </script>

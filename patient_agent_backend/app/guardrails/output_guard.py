@@ -15,7 +15,25 @@ MEDICAL_ADVICE_PATTERNS: list[re.Pattern] = [
     ]
 ]
 
+# 疑似编造内容检测模式
+HALLUCINATION_PATTERNS: list[re.Pattern] = [
+    re.compile(p, re.IGNORECASE)
+    for p in [
+        r"医院地址[：:]\s*\S",       # 编造地址
+        r"位于\S+路",                 # 编造具体位置
+        r"联系电话[：:]\s*\d",        # 编造电话
+        r"擅长\S{2,}(治疗|手术|诊断)",  # 编造医生擅长领域（非工具返回）
+        r"毕业于\S+",                 # 编造医生毕业院校
+        r"从事\S+年",                 # 编造医生从业年限
+    ]
+]
+
 DISCLAIMER = "⚠️ 以上信息仅供参考，不能替代医生面诊。如有身体不适，请尽快到院就诊。"
+
+HALLUCINATION_WARNING = (
+    "【系统提示】以下回复可能包含未经核实的信息，请以医院官方数据为准。"
+    "如需准确信息，请咨询医院工作人员。\n"
+)
 
 
 def check_output(
@@ -47,7 +65,15 @@ def check_output(
             should_show_disclaimer = True
             break
 
-    # 2. 判断是否需要附加免责声明
+    # 2. 检查是否包含疑似编造内容
+    for pattern in HALLUCINATION_PATTERNS:
+        if pattern.search(message):
+            # 在编造内容前插入警告
+            message = HALLUCINATION_WARNING + message
+            should_show_disclaimer = True
+            break
+
+    # 3. 判断是否需要附加免责声明
     if needs_disclaimer and not disclaimer_shown:
         should_show_disclaimer = True
 

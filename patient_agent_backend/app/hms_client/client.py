@@ -36,11 +36,13 @@ class HmsClient:
         self.doctor_service = DoctorService(self)
         self.registration_service = RegistrationService(self)
 
-    async def login_admin(self, username: str = "admin", password: str = "") -> None:
+    async def login_admin(self, username: str = "", password: str = "") -> None:
         """使用管理员账号登录 HMS，获取 SaToken
 
         MVP 阶段使用默认管理员账号。生产环境应使用专用 API 账号。
         """
+        if not username:
+            username = settings.hms_admin_username
         if not password:
             password = settings.hms_admin_password
 
@@ -81,7 +83,7 @@ class HmsClient:
         """发送 POST 请求"""
         return await self._request("POST", path, json=json)
 
-    async def _request(self, method: str, path: str, **kwargs) -> Any:
+    async def _request(self, method: str, path: str, _retried: bool = False, **kwargs) -> Any:
         """发送 HTTP 请求并处理响应"""
         try:
             response = await self._http.request(method, path, **kwargs)
@@ -94,6 +96,10 @@ class HmsClient:
 
         # 处理响应状态码
         if response.status_code == 401:
+            if path != "/user/login" and not _retried:
+                logger.warning("HMS 认证失效，尝试重新登录后重试: %s %s", method, path)
+                await self.login_admin()
+                return await self._request(method, path, _retried=True, **kwargs)
             raise HmsAuthError("认证失败，请重新登录")
         if response.status_code == 404:
             raise HmsNotFoundError(f"资源不存在: {path}")
@@ -111,6 +117,10 @@ class HmsClient:
         if code != 200:
             msg = data.get("msg", "未知错误")
             if code == 401:
+                if path != "/user/login" and not _retried:
+                    logger.warning("HMS 返回 401，尝试重新登录后重试: %s %s", method, path)
+                    await self.login_admin()
+                    return await self._request(method, path, _retried=True, **kwargs)
                 raise HmsAuthError(msg)
             raise HmsClientError(f"HMS 返回错误: {msg}")
 

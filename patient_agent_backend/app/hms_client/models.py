@@ -6,9 +6,9 @@ from typing import Optional
 # ============ 通用 ============
 
 class PageRequest(BaseModel):
-    """分页请求基类"""
+    """分页请求基类（HMS 服务端要求 length 为 10~50）"""
     page: int = Field(default=1, ge=1, description="页码")
-    page_size: int = Field(default=20, ge=1, le=100, description="每页数量")
+    page_size: int = Field(default=20, ge=10, le=50, description="每页数量")
 
 
 class PageResponse(BaseModel):

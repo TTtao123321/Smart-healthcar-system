@@ -29,7 +29,7 @@ async def resolve_dept(hms_client: HmsClient, dept_name: str) -> ResolveResult:
     """
     try:
         result = await hms_client.dept_service.list_depts(
-            DeptListRequest(page=1, page_size=100)
+            DeptListRequest(page=1, page_size=50)
         )
     except Exception as e:
         logger.error(f"resolve_dept 调用 HMS 失败: {e}")

@@ -22,9 +22,9 @@ def _resolve_patient_card_id(explicit: int | None) -> int | None:
     if explicit is not None:
         return explicit
     pid = get_patient_id()
-    if pid and pid.isdigit():
-        return int(pid)
-    return None
+    if pid is None:
+        raise ValueError("请先登录后再挂号")
+    return int(pid)
 
 
 def create_registration_tools(hms_client: HmsClient):
@@ -54,11 +54,12 @@ def create_registration_tools(hms_client: HmsClient):
 
         返回格式：{"ok": true, "summary": "...", "data": {...}}
         """
-        card_id = _resolve_patient_card_id(patient_card_id)
-        if card_id is None:
+        try:
+            card_id = _resolve_patient_card_id(patient_card_id)
+        except ValueError as e:
             return err(
-                "缺少 patient_card_id",
-                "请引导用户告知就诊卡号（数字）后再发起挂号。",
+                str(e),
+                "请先引导用户完成登录，再继续挂号流程。",
             )
 
         try:
@@ -103,11 +104,14 @@ def create_registration_tools(hms_client: HmsClient):
 
         返回格式：{"ok": true, "summary": "...", "data": [...]}
         """
-        card_id = _resolve_patient_card_id(patient_card_id)
+        try:
+            card_id = _resolve_patient_card_id(patient_card_id)
+        except ValueError:
+            card_id = None
         if registration_id is None and card_id is None:
             return err(
-                "未提供查询条件",
-                "需要挂号ID或患者就诊卡ID，请向用户确认。",
+                "请先登录后再查询挂号记录",
+                "若用户已登录，优先按当前登录患者查询挂号记录。",
             )
 
         try:

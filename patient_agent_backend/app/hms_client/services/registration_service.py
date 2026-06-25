@@ -76,6 +76,21 @@ class RegistrationService:
 
         return RegistrationQueryResponse(items=items)
 
+    async def query_recent(self, patient_card_id: int, limit: int = 3) -> list[dict]:
+        """查询患者最近就诊记录
+
+        对接 HMS: POST /patient/selectDetail
+        """
+        data = await self._client.post(
+            "/patient/selectDetail",
+            json={"patientCardId": patient_card_id},
+        )
+
+        result = data.get("result", {})
+        registrations = result.get("registrations", [])
+        registrations.sort(key=lambda item: item.get("date", ""), reverse=True)
+        return registrations[:limit]
+
     async def cancel(self, request: RegistrationCancelRequest) -> RegistrationCancelResponse:
         """取消挂号
 
