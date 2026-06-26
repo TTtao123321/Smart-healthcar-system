@@ -1,33 +1,28 @@
 """聊天接口（普通 + SSE 流式）"""
 
 import json
-import logging
-import re
 import uuid
-from typing import AsyncGenerator
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from langchain_core.messages import AIMessage, HumanMessage
 from sse_starlette.sse import EventSourceResponse
 
-from app.agent.request_context import set_patient_session
+from app.agent.graph import compile_graph
 from app.auth.dependencies import require_patient_session
 from app.auth.models import PatientSession
-from app.agent.graph import compile_graph
-from app.agent.state import AgentState
+from app.chat.orchestrator import ChatOrchestrator
 from app.memory.redis_memory import RedisMemory
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/chat", tags=["聊天"])
 
 # 全局依赖（在 main.py 中注入）
 _memory: RedisMemory | None = None
+_orchestrator: ChatOrchestrator | None = None
 
 
 def set_memory(memory: RedisMemory) -> None:
-    global _memory
+    global _memory, _orchestrator
     _memory = memory
+    _orchestrator = None
 
 
 def get_memory() -> RedisMemory:
@@ -36,67 +31,35 @@ def get_memory() -> RedisMemory:
     return _memory
 
 
+def get_orchestrator() -> ChatOrchestrator:
+    if _orchestrator is None:
+        memory = get_memory()
+        return ChatOrchestrator(memory=memory, graph_factory=compile_graph)
+    return _orchestrator
+
+
 @router.post("")
 async def chat(request: Request, session: PatientSession = Depends(require_patient_session)):
     """发送消息，返回完整响应"""
     body = await request.json()
     user_message = body.get("message", "")
-    patient_id = session.patient_id
     thread_id = body.get("thread_id", str(uuid.uuid4()))
 
     if not user_message.strip():
         raise HTTPException(status_code=400, detail="消息不能为空")
 
-    set_patient_session(session)
-
-    # 加载对话历史
-    memory = get_memory()
-    history = await memory.load_messages(patient_id, thread_id)
-
-    # 构建消息列表
-    messages = []
-    for msg in history:
-        if msg.get("role") == "user":
-            messages.append(HumanMessage(content=msg["content"]))
-        elif msg.get("role") == "assistant":
-            messages.append(AIMessage(content=msg["content"]))
-    messages.append(HumanMessage(content=user_message))
-
-    # 构建 Agent 状态
-    state: AgentState = {
-        "messages": messages,
-        "patient_id": patient_id,
-        "guardrail_result": None,
-        "needs_handoff": False,
-        "disclaimer_shown": False,
-        "conversation_turn": len(history) // 2 + 1,
-    }
-
-    # 执行 Agent
-    try:
-        graph = compile_graph()
-        result = await graph.ainvoke(state)
-    except Exception as e:
-        logger.error(f"Agent 执行失败: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="智能助手暂时无法响应，请稍后再试")
-
-    # 提取最后一条 AI 消息
-    response_content = ""
-    result_messages = result.get("messages", [])
-    for msg in reversed(result_messages):
-        if isinstance(msg, AIMessage) and msg.content:
-            response_content = msg.content
-            break
-
-    # 保存对话历史
-    history.append({"role": "user", "content": user_message})
-    history.append({"role": "assistant", "content": response_content})
-    await memory.save_messages(patient_id, thread_id, history)
+    result = await get_orchestrator().run_once(
+        session=session,
+        user_message=user_message,
+        thread_id=thread_id,
+    )
 
     return {
-        "message": response_content,
-        "thread_id": thread_id,
-        "needs_handoff": result.get("needs_handoff", False),
+        "message": result.message,
+        "thread_id": result.thread_id,
+        "needs_handoff": result.needs_handoff,
+        "reply_type": result.reply_type,
+        "degraded": result.degraded,
     }
 
 
@@ -105,249 +68,22 @@ async def chat_stream(request: Request, session: PatientSession = Depends(requir
     """发送消息，SSE 流式返回"""
     body = await request.json()
     user_message = body.get("message", "")
-    patient_id = session.patient_id
     thread_id = body.get("thread_id", str(uuid.uuid4()))
 
     if not user_message.strip():
         raise HTTPException(status_code=400, detail="消息不能为空")
 
-    async def event_generator() -> AsyncGenerator[dict, None]:
-        # 设置当前请求上下文，供工具调用获取
-        set_patient_session(session)
-
-        memory = get_memory()
-        history = await memory.load_messages(patient_id, thread_id)
-
-        messages = []
-        for msg in history:
-            if msg.get("role") == "user":
-                messages.append(HumanMessage(content=msg["content"]))
-            elif msg.get("role") == "assistant":
-                messages.append(AIMessage(content=msg["content"]))
-        messages.append(HumanMessage(content=user_message))
-
-        state: AgentState = {
-            "messages": messages,
-            "patient_id": patient_id,
-            "guardrail_result": None,
-            "needs_handoff": False,
-            "disclaimer_shown": False,
-            "conversation_turn": len(history) // 2 + 1,
-        }
-
-        try:
-            graph = compile_graph()
-            # 流式执行
-            visible_response = ""
-            # 思考模式状态机
-            think_state = "outside"  # outside | inside
-            think_buffer = ""  # 跨 chunk 缓冲（用于检测被切断的标签）
-            tool_started = False
-            pending_pre_tool_message = ""
-
-            async for event in graph.astream_events(state, version="v2"):
-                kind = event.get("event", "")
-
-                if kind == "on_chat_model_stream":
-                    chunk = event.get("data", {}).get("chunk")
-                    if chunk and hasattr(chunk, "content") and chunk.content:
-                        # 将新 chunk 拼接到缓冲，解析 <think>/</think> 标签
-                        think_buffer += chunk.content
-                        # 持续解析缓冲区，直到无法再切分
-                        while True:
-                            if think_state == "outside":
-                                idx = think_buffer.find("<think>")
-                                if idx == -1:
-                                    # 没有 <think>，但要防止半截标签如 "<thin" 被作为 message 发送
-                                    # 保留末尾最多 len("<think>")-1=6 个字符作为可能的标签前缀
-                                    safe_len = max(len(think_buffer) - 6, 0)
-                                    if safe_len > 0:
-                                        emit = think_buffer[:safe_len]
-                                        think_buffer = think_buffer[safe_len:]
-                                        if not tool_started:
-                                            pending_pre_tool_message += emit
-                                        else:
-                                            visible_response += emit
-                                            yield {
-                                                "event": "message",
-                                                "data": json.dumps(
-                                                    {"content": emit, "thread_id": thread_id},
-                                                    ensure_ascii=False,
-                                                ),
-                                            }
-                                    break
-                                else:
-                                    # 发送 <think> 之前的内容作为 message
-                                    if idx > 0:
-                                        emit = think_buffer[:idx]
-                                        if not tool_started:
-                                            pending_pre_tool_message += emit
-                                        else:
-                                            visible_response += emit
-                                            yield {
-                                                "event": "message",
-                                                "data": json.dumps(
-                                                    {"content": emit, "thread_id": thread_id},
-                                                    ensure_ascii=False,
-                                                ),
-                                            }
-                                    think_buffer = think_buffer[idx + len("<think>"):]
-                                    think_state = "inside"
-                            else:  # inside
-                                idx = think_buffer.find("</think>")
-                                if idx == -1:
-                                    # 保留末尾最多 len("</think>")-1=7 个字符
-                                    safe_len = max(len(think_buffer) - 7, 0)
-                                    if safe_len > 0:
-                                        emit = think_buffer[:safe_len]
-                                        think_buffer = think_buffer[safe_len:]
-                                        yield {
-                                            "event": "thinking",
-                                            "data": json.dumps(
-                                                {"content": emit, "thread_id": thread_id},
-                                                ensure_ascii=False,
-                                            ),
-                                        }
-                                    break
-                                else:
-                                    # 发送 </think> 之前的内容作为 thinking
-                                    if idx > 0:
-                                        emit = think_buffer[:idx]
-                                        yield {
-                                            "event": "thinking",
-                                            "data": json.dumps(
-                                                {"content": emit, "thread_id": thread_id},
-                                                ensure_ascii=False,
-                                            ),
-                                        }
-                                    think_buffer = think_buffer[idx + len("</think>"):]
-                                    think_state = "outside"
-
-                elif kind == "on_tool_start":
-                    tool_started = True
-                    if pending_pre_tool_message.strip():
-                        cleaned_reasoning = re.sub(
-                            r"^\s*think[:：]?\s*",
-                            "",
-                            pending_pre_tool_message,
-                            flags=re.IGNORECASE,
-                        )
-                        yield {
-                            "event": "thinking",
-                            "data": json.dumps(
-                                {"content": cleaned_reasoning, "thread_id": thread_id},
-                                ensure_ascii=False,
-                            ),
-                        }
-                        pending_pre_tool_message = ""
-                    tool_name = event.get("name", "unknown")
-                    tool_input = event.get("data", {}).get("input", {})
-                    run_id = event.get("run_id", "")
-                    # 将不可序列化的参数转为字符串
-                    safe_args = {}
-                    for k, v in tool_input.items():
-                        try:
-                            json.dumps(v)
-                            safe_args[k] = v
-                        except (TypeError, ValueError):
-                            safe_args[k] = str(v)
-                    yield {
-                        "event": "tool_start",
-                        "data": json.dumps(
-                            {
-                                "tool_call_id": run_id,
-                                "tool_name": tool_name,
-                                "tool_args": safe_args,
-                            },
-                            ensure_ascii=False,
-                        ),
-                    }
-
-                elif kind == "on_tool_end":
-                    tool_name = event.get("name", "unknown")
-                    run_id = event.get("run_id", "")
-                    output = event.get("data", {}).get("output")
-                    yield {
-                        "event": "tool_end",
-                        "data": json.dumps(
-                            {
-                                "tool_call_id": run_id,
-                                "tool_name": tool_name,
-                                "tool_result": str(output) if output is not None else "",
-                            },
-                            ensure_ascii=False,
-                        ),
-                    }
-
-                elif kind == "on_tool_error":
-                    tool_name = event.get("name", "unknown")
-                    run_id = event.get("run_id", "")
-                    err = event.get("data", {}).get("error") or event.get("data", {}).get("output")
-                    yield {
-                        "event": "tool_end",
-                        "data": json.dumps(
-                            {
-                                "tool_call_id": run_id,
-                                "tool_name": tool_name,
-                                "tool_error": str(err) if err is not None else "工具调用失败",
-                            },
-                            ensure_ascii=False,
-                        ),
-                    }
-
-            # 流结束后，刷新缓冲区残留内容
-            if think_buffer:
-                if think_state == "outside":
-                    if not tool_started:
-                        pending_pre_tool_message += think_buffer
-                    else:
-                        visible_response += think_buffer
-                        yield {
-                            "event": "message",
-                            "data": json.dumps(
-                                {"content": think_buffer, "thread_id": thread_id},
-                                ensure_ascii=False,
-                            ),
-                        }
-                else:
-                    yield {
-                        "event": "thinking",
-                        "data": json.dumps(
-                            {"content": think_buffer, "thread_id": thread_id},
-                            ensure_ascii=False,
-                        ),
-                    }
-                think_buffer = ""
-
-            if not tool_started and pending_pre_tool_message.strip():
-                visible_response += pending_pre_tool_message
-                yield {
-                    "event": "message",
-                    "data": json.dumps(
-                        {"content": pending_pre_tool_message, "thread_id": thread_id},
-                        ensure_ascii=False,
-                    ),
-                }
-                pending_pre_tool_message = ""
-
-            # 保存对话历史
-            history.append({"role": "user", "content": user_message})
-            clean_response = visible_response.strip()
-            history.append({"role": "assistant", "content": clean_response})
-            await memory.save_messages(patient_id, thread_id, history)
-
+    async def event_generator():
+        async for event in get_orchestrator().run_stream(
+            session=session,
+            user_message=user_message,
+            thread_id=thread_id,
+        ):
+            event_name = event.event if hasattr(event, "event") else event.get("event", "message")
+            event_data = event.data if hasattr(event, "data") else event.get("data", {})
             yield {
-                "event": "done",
-                "data": json.dumps({"thread_id": thread_id}, ensure_ascii=False),
-            }
-
-        except Exception as e:
-            logger.error(f"Agent 流式执行失败: {e}", exc_info=True)
-            yield {
-                "event": "error",
-                "data": json.dumps(
-                    {"error": "智能助手暂时无法响应"}, ensure_ascii=False
-                ),
+                "event": event_name,
+                "data": json.dumps(event_data, ensure_ascii=False),
             }
 
     return EventSourceResponse(event_generator())
@@ -362,8 +98,6 @@ async def chat_history(
     if not thread_id:
         return {"messages": []}
 
-    patient_id = session.patient_id
-    set_patient_session(session)
     memory = get_memory()
-    messages = await memory.load_messages(patient_id, thread_id)
+    messages = await memory.load_messages(session.patient_id, thread_id)
     return {"messages": messages, "thread_id": thread_id}
