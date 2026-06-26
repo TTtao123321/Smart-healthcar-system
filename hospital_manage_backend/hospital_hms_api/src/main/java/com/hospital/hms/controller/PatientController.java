@@ -54,7 +54,7 @@ public class PatientController {
     public CommonResult selectDetail(@RequestBody @Valid SelectPatientRegistrationsForm form) {
         try {
             HashMap<String, Object> result = patientService.selectPatientDetail(
-                    form.getPatientCardId(), form.getDeptSubId(), form.getDoctorId());
+                    form.getPatientId(), form.getDeptSubId(), form.getDoctorId());
             return CommonResult.ok(result);
         } catch (Exception e) {
             log.error("查询患者详情失败, form:{}", form, e);

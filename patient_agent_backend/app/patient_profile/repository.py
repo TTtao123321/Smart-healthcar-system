@@ -1,3 +1,4 @@
+from datetime import date, datetime
 from typing import Optional
 
 import aiomysql
@@ -88,4 +89,7 @@ class PatientProfileRepository:
     def _to_profile(row) -> Optional[PatientProfile]:
         if not row:
             return None
+        birthday = row.get("birthday")
+        if isinstance(birthday, (date, datetime)):
+            row = {**row, "birthday": birthday.isoformat()}
         return PatientProfile(**row)

@@ -65,7 +65,7 @@ CREATE TABLE `prescription_item` (
 DELETE FROM prescription_item;
 DELETE FROM prescription;
 DELETE FROM medical_record;
-DELETE FROM medical_registration WHERE patient_card_id BETWEEN 1 AND 8;
+DELETE FROM medical_registration WHERE patient_id BETWEEN 1 AND 8;
 DELETE FROM patient_user_info WHERE id BETWEEN 1 AND 8;
 
 -- 1. 患者基本信息
@@ -82,7 +82,7 @@ INSERT INTO `patient_user_info` (`id`, `uuid`, `name`, `sex`, `pid`, `tel`, `bir
 -- 2. 挂号记录（medical_registration）
 -- doctor_id 对应已有医生：1=李雨萌, 2=张佳欣, 3=王文彦, 4=刘梦琪, 7=吴子萱, 9=许文彬
 -- dept_sub_id 对应已有诊室：2=眼科门诊, 20=皮肤病门诊, 18=心脏外科门诊
-INSERT INTO `medical_registration` (`id`, `patient_card_id`, `work_plan_id`, `doctor_schedule_id`, `doctor_id`, `dept_sub_id`, `date`, `slot`, `status`, `payment_status`) VALUES
+INSERT INTO `medical_registration` (`id`, `patient_id`, `work_plan_id`, `doctor_schedule_id`, `doctor_id`, `dept_sub_id`, `date`, `slot`, `status`, `payment_status`) VALUES
 (1,  1, 1, NULL, 1, 2,  '2026-06-14', 3, 2, 1),
 (2,  1, 2, NULL, 2, 20, '2026-06-15', 5, 2, 1),
 (3,  2, 3, NULL, 3, 2,  '2026-06-15', 7, 2, 1),

@@ -1062,7 +1062,7 @@ INSERT INTO `medical_dept_sub_doctor` VALUES (31, 3, 31);
 DROP TABLE IF EXISTS `medical_registration`;
 CREATE TABLE `medical_registration`  (
   `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '主键',
-  `patient_card_id` int(11) NULL DEFAULT NULL COMMENT '患者就诊卡ID',
+  `patient_id` int(11) NULL DEFAULT NULL COMMENT '患者ID',
   `work_plan_id` int(11) NULL DEFAULT NULL COMMENT '医生出诊计划ID',
   `doctor_schedule_id` int(11) NULL DEFAULT NULL COMMENT '医生排班时段ID',
   `doctor_id` int(11) NULL DEFAULT NULL COMMENT '医生ID',
@@ -1244,7 +1244,7 @@ CREATE TABLE `users`  (
 -- ----------------------------
 -- Records of users
 -- ----------------------------
-INSERT INTO `users` VALUES (1, 'admin', '68943c12b127b7d5b22750b32d0e89f7', 'admin', '男', '15055555551', 'admin@163.com', '医生', '[7]', 1, 1, 1, '2025-03-09 19:07:42', 1, '2025-03-09 19:07:42');
+INSERT INTO `users` VALUES (1, 'admin', '541415805af45b2f9bafad16c893f2ce', 'admin', '男', '15055555551', 'admin@163.com', '医生', '[7]', 1, 1, 1, '2025-03-09 19:07:42', 1, '2025-03-09 19:07:42');
 INSERT INTO `users` VALUES (2, 'zhangsan', '7044670653a6ff0662d4def3e2dd4979', 'root', '女', '15055555552', 'zhangsan@163.com', '医生', '[7]', 1, 1, 1, '2025-02-18 10:34:06', 1, '2025-02-18 10:34:06');
 INSERT INTO `users` VALUES (3, 'lisi', 'd1c3ef3d450532d24ab676e8edd05184', 'lisi', '男', '15055555553', 'lisi@163.com', '医生', '[3, 4, 5]', 0, 5, 1, '2024-09-27 16:44:15', 1, '2025-01-05 11:45:38');
 INSERT INTO `users` VALUES (4, 'lisi1', '841A3261CDB4F1282B81A1C9C74BE834', '李四一', '男', '15055555553', 'lisi@163.com', '医生', '[5, 4]', 0, 3, 1, '2024-09-27 16:44:16', 1, '2025-01-05 11:45:38');

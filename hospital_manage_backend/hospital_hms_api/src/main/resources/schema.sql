@@ -1073,7 +1073,7 @@ INSERT INTO `medical_dept_sub_doctor` VALUES (31, 3, 31);
 DROP TABLE IF EXISTS `medical_registration`;
 CREATE TABLE `medical_registration`  (
   `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '主键',
-  `patient_card_id` int(11) NULL DEFAULT NULL COMMENT '患者就诊卡ID',
+  `patient_id` int(11) NULL DEFAULT NULL COMMENT '患者ID',
   `work_plan_id` int(11) NULL DEFAULT NULL COMMENT '医生出诊计划ID',
   `doctor_schedule_id` int(11) NULL DEFAULT NULL COMMENT '医生排班时段ID',
   `doctor_id` int(11) NULL DEFAULT NULL COMMENT '医生ID',

@@ -10,9 +10,9 @@ import javax.validation.constraints.NotNull;
 @Schema(description = "查询患者就诊记录表单")
 public class SelectPatientRegistrationsForm {
 
-    @NotNull(message = "patientCardId不能为空")
-    @Min(value = 1, message = "patientCardId不能小于1")
-    private Integer patientCardId;
+    @NotNull(message = "patientId不能为空")
+    @Min(value = 1, message = "patientId不能小于1")
+    private Integer patientId;
 
     @Schema(description = "诊室ID，用于过滤同一科室诊室的记录")
     private Integer deptSubId;

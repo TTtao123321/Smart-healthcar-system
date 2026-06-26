@@ -179,7 +179,7 @@ class ScheduleDetailResponse(BaseModel):
 
 class RegistrationCreateRequest(BaseModel):
     """创建挂号请求"""
-    patient_card_id: int
+    patient_id: int
     work_plan_id: int
     doctor_schedule_id: int
     doctor_id: int
@@ -196,14 +196,14 @@ class RegistrationCreateResponse(BaseModel):
 
 class RegistrationQueryRequest(BaseModel):
     """查询挂号请求"""
-    patient_card_id: Optional[int] = None
+    patient_id: Optional[int] = None
     registration_id: Optional[int] = None
 
 
 class RegistrationItem(BaseModel):
     """挂号记录"""
     id: int
-    patient_card_id: Optional[int] = None
+    patient_id: Optional[int] = None
     work_plan_id: Optional[int] = None
     doctor_schedule_id: Optional[int] = None
     doctor_id: Optional[int] = None

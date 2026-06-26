@@ -38,7 +38,7 @@ public class MedicalRegistrationServiceImplTest {
     @DisplayName("save_正常创建挂号并返回主键")
     void save_正常创建挂号并返回主键() {
         MedicalRegistration entity = new MedicalRegistration();
-        entity.setPatientCardId(1);
+        entity.setPatientId(1);
         entity.setWorkPlanId(10);
         entity.setDoctorScheduleId(100);
         entity.setDoctorId(8);
@@ -70,7 +70,7 @@ public class MedicalRegistrationServiceImplTest {
     @DisplayName("save_号源已满时抛出异常")
     void save_号源已满时抛出异常() {
         MedicalRegistration entity = new MedicalRegistration();
-        entity.setPatientCardId(1);
+        entity.setPatientId(1);
         entity.setDoctorScheduleId(100);
 
         HashMap<String, Object> patient = new HashMap<>();

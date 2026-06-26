@@ -40,7 +40,7 @@ DAILY_SCHEDULE = {
 }
 
 # 挂号记录：患者 × 医生 × 日期 × 状态
-# (patient_card_id, patient_name, doctor_id, day_offset, slot, status)
+# (patient_id, patient_name, doctor_id, day_offset, slot, status)
 # status: 0=待就诊, 1=就诊中, 2=已就诊, 3=复诊中
 REGISTRATIONS = [
     # --- 6/24 ---
@@ -212,7 +212,7 @@ lines.append("")
 lines.append("-- ============================================")
 lines.append(f"-- 3. 挂号记录（{len(reg_records)} 条，覆盖 0=待就诊/1=就诊中/2=已就诊/3=复诊中）")
 lines.append("-- ============================================")
-lines.append("INSERT INTO `medical_registration` (`id`, `patient_card_id`, `work_plan_id`, `doctor_schedule_id`, `doctor_id`, `dept_sub_id`, `date`, `slot`, `status`, `payment_status`) VALUES")
+lines.append("INSERT INTO `medical_registration` (`id`, `patient_id`, `work_plan_id`, `doctor_schedule_id`, `doctor_id`, `dept_sub_id`, `date`, `slot`, `status`, `payment_status`) VALUES")
 reg_lines = []
 for rid, pid, wp, sch, did, dsid, doff, slot, status in reg_records:
     reg_lines.append(

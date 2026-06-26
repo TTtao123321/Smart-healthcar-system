@@ -207,7 +207,7 @@ public class PatientControllerTest {
     void selectDetail_正常() {
         try (MockedStatic<StpUtil> ignored = mockSaTokenLogin()) {
             SelectPatientRegistrationsForm form = new SelectPatientRegistrationsForm();
-            form.setPatientCardId(1);
+            form.setPatientId(1);
 
             HashMap<String, Object> detail = new HashMap<>();
             detail.put("name", "张三丰");
@@ -225,7 +225,7 @@ public class PatientControllerTest {
     void selectDetail_异常() {
         try (MockedStatic<StpUtil> ignored = mockSaTokenLogin()) {
             SelectPatientRegistrationsForm form = new SelectPatientRegistrationsForm();
-            form.setPatientCardId(1);
+            form.setPatientId(1);
 
             when(patientService.selectPatientDetail(1, null, null))
                     .thenThrow(new RuntimeException("查询异常"));

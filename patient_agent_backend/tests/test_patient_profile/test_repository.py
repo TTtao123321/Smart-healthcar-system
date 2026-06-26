@@ -1,3 +1,5 @@
+from datetime import date
+
 from app.patient_profile.models import PatientProfile
 from app.patient_profile.repository import PatientProfileRepository
 
@@ -67,6 +69,30 @@ async def test_get_by_phone_maps_database_row():
     assert profile.id == 5
     assert profile.name == "张三"
     assert profile.tel == "13800138000"
+
+
+async def test_get_by_phone_converts_date_birthday_to_iso_string():
+    cursor = FakeCursor(
+        fetchone_result={
+            "id": 5,
+            "uuid": "u5",
+            "name": "张三",
+            "sex": "男",
+            "pid": "110101199001011234",
+            "tel": "13800138000",
+            "birthday": date(1990, 1, 1),
+            "insurance_type": 1,
+            "medical_history": "无",
+            "allergy_history": "无",
+            "family_history": "无",
+        }
+    )
+    repo = PatientProfileRepository(FakePool(cursor))
+
+    profile = await repo.get_by_phone("13800138000")
+
+    assert profile is not None
+    assert profile.birthday == "1990-01-01"
 
 
 async def test_create_patient_returns_profile_with_generated_id():

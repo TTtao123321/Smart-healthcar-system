@@ -15,7 +15,7 @@ public interface PatientDao {
 
     List<HashMap<String, Object>> selectPatientByPage(Map<String, Object> map);
 
-    HashMap<String, Object> selectPatientInfoById(Integer patientCardId);
+    HashMap<String, Object> selectPatientInfoById(Integer patientId);
 
     List<HashMap<String, Object>> selectRegistrationsByPatientId(Map<String, Object> map);
 

@@ -33,10 +33,10 @@ public class PatientServiceImpl implements PatientService {
     }
 
     @Override
-    public HashMap<String, Object> selectPatientDetail(Integer patientCardId, Integer deptSubId, Integer doctorId) {
-        HashMap<String, Object> patientInfo = patientDao.selectPatientInfoById(patientCardId);
+    public HashMap<String, Object> selectPatientDetail(Integer patientId, Integer deptSubId, Integer doctorId) {
+        HashMap<String, Object> patientInfo = patientDao.selectPatientInfoById(patientId);
         HashMap<String, Object> param = new HashMap<>();
-        param.put("patientCardId", patientCardId);
+        param.put("patientId", patientId);
         param.put("deptSubId", deptSubId);
         param.put("doctorId", doctorId);
         List<HashMap<String, Object>> registrations = patientDao.selectRegistrationsByPatientId(param);

@@ -265,7 +265,7 @@ INSERT INTO `doctor_work_plan_schedule` (`id`, `work_plan_id`, `slot`, `maximum`
 -- ============================================
 -- 3. 挂号记录（28 条，覆盖 0=待就诊/1=就诊中/2=已就诊/3=复诊中）
 -- ============================================
-INSERT INTO `medical_registration` (`id`, `patient_card_id`, `work_plan_id`, `doctor_schedule_id`, `doctor_id`, `dept_sub_id`, `date`, `slot`, `status`, `payment_status`) VALUES
+INSERT INTO `medical_registration` (`id`, `patient_id`, `work_plan_id`, `doctor_schedule_id`, `doctor_id`, `dept_sub_id`, `date`, `slot`, `status`, `payment_status`) VALUES
 (13, 1, 200, 900,  1,  2, @d0, 1, 0, 1),
 (14, 1, 209, 927, 20,  1, @d0, 1, 1, 1),
 (15, 2, 205, 915,  7,  4, @d0, 1, 2, 1),

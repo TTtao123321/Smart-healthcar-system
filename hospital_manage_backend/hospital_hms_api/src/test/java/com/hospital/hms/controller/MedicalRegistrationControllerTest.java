@@ -39,7 +39,7 @@ public class MedicalRegistrationControllerTest {
     void save_正常返回成功() {
         try (MockedStatic<StpUtil> ignored = mockSaTokenLogin()) {
             InsertMedicalRegistrationForm form = new InsertMedicalRegistrationForm();
-            form.setPatientCardId(1);
+            form.setPatientId(1);
             form.setWorkPlanId(10);
             form.setDoctorScheduleId(100);
             form.setDoctorId(8);
@@ -62,7 +62,7 @@ public class MedicalRegistrationControllerTest {
     void save_异常返回错误() {
         try (MockedStatic<StpUtil> ignored = mockSaTokenLogin()) {
             InsertMedicalRegistrationForm form = new InsertMedicalRegistrationForm();
-            form.setPatientCardId(1);
+            form.setPatientId(1);
             form.setWorkPlanId(10);
             form.setDoctorScheduleId(100);
             form.setDoctorId(8);

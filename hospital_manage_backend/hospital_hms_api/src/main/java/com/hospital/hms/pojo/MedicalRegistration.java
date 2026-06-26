@@ -5,7 +5,7 @@ import lombok.Data;
 @Data
 public class MedicalRegistration {
     private Integer id;
-    private Integer patientCardId;
+    private Integer patientId;
     private Integer workPlanId;
     private Integer doctorScheduleId;
     private Integer doctorId;

@@ -24,7 +24,7 @@ public class MedicalRegistrationServiceImpl implements MedicalRegistrationServic
     @Override
     @Transactional
     public int save(MedicalRegistration entity) {
-        HashMap<String, Object> patient = patientDao.selectPatientInfoById(entity.getPatientCardId());
+        HashMap<String, Object> patient = patientDao.selectPatientInfoById(entity.getPatientId());
         if (patient == null) {
             throw new GlobalException("患者不存在");
         }

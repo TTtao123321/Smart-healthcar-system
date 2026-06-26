@@ -32,7 +32,15 @@ class RegistrationService:
         """
         data = await self._client.post(
             "/medical_registration/save",
-            json=request.model_dump(mode="json"),
+            json={
+                "patientId": request.patient_id,
+                "workPlanId": request.work_plan_id,
+                "doctorScheduleId": request.doctor_schedule_id,
+                "doctorId": request.doctor_id,
+                "deptSubId": request.dept_sub_id,
+                "date": request.appointment_date.isoformat(),
+                "slot": request.slot,
+            },
         )
 
         result = data.get("result", data)
@@ -44,30 +52,27 @@ class RegistrationService:
     async def query(self, request: RegistrationQueryRequest) -> RegistrationQueryResponse:
         """查询挂号状态
 
-        对接 HMS: POST /patient/selectByPage
+        对接 HMS: POST /patient/selectDetail
         """
-        payload = {"page": 1, "length": 20}
-        if request.patient_card_id:
-            payload["patientCardId"] = request.patient_card_id
-        if request.registration_id:
-            payload["id"] = request.registration_id
-
         data = await self._client.post(
-            "/patient/selectByPage",
-            json=payload,
+            "/patient/selectDetail",
+            json={"patientId": request.patient_id},
         )
 
-        result = data.get("result", {})
+        result = data.get("result", data)
         items = []
-        for item in result.get("list", []):
+        for item in result.get("registrations", []):
+            registration_id = item.get("registrationId", item.get("id", 0))
+            if request.registration_id and registration_id != request.registration_id:
+                continue
             items.append(RegistrationItem(
-                id=item.get("id", 0),
-                patient_card_id=item.get("patientCardId"),
+                id=registration_id,
+                patient_id=item.get("patientId", request.patient_id),
                 work_plan_id=item.get("workPlanId"),
                 doctor_schedule_id=item.get("doctorScheduleId"),
                 doctor_id=item.get("doctorId"),
                 dept_sub_id=item.get("deptSubId"),
-                date=item.get("date"),
+                appointment_date=item.get("date"),
                 slot=item.get("slot"),
                 status=item.get("status"),
                 payment_status=item.get("paymentStatus"),
@@ -76,17 +81,17 @@ class RegistrationService:
 
         return RegistrationQueryResponse(items=items)
 
-    async def query_recent(self, patient_card_id: int, limit: int = 3) -> list[dict]:
+    async def query_recent(self, patient_id: int, limit: int = 3) -> list[dict]:
         """查询患者最近就诊记录
 
         对接 HMS: POST /patient/selectDetail
         """
         data = await self._client.post(
             "/patient/selectDetail",
-            json={"patientCardId": patient_card_id},
+            json={"patientId": patient_id},
         )
 
-        result = data.get("result", {})
+        result = data.get("result", data)
         registrations = result.get("registrations", [])
         registrations.sort(key=lambda item: item.get("date", ""), reverse=True)
         return registrations[:limit]

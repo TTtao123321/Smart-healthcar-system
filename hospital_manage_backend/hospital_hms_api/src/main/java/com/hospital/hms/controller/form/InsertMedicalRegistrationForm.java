@@ -12,9 +12,9 @@ import javax.validation.constraints.NotNull;
 @Schema(description = "创建挂号表单")
 public class InsertMedicalRegistrationForm {
 
-    @NotNull(message = "patientCardId不能为空")
-    @Min(value = 1, message = "patientCardId不能小于1")
-    private Integer patientCardId;
+    @NotNull(message = "patientId不能为空")
+    @Min(value = 1, message = "patientId不能小于1")
+    private Integer patientId;
 
     @NotNull(message = "workPlanId不能为空")
     @Min(value = 1, message = "workPlanId不能小于1")

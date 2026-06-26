@@ -92,15 +92,16 @@ public class PatientServiceImplTest {
     @Test
     @DisplayName("selectPatientDetail_正常 - mock两个dao方法，验证result包含patientInfo和registrations")
     void selectPatientDetail_正常() {
-        Integer patientCardId = 1;
+        Integer patientId = 1;
         Integer deptSubId = 2;
         Integer doctorId = 3;
 
         // mock 患者信息
         HashMap<String, Object> patientInfo = new HashMap<>();
+        patientInfo.put("patientId", 1);
         patientInfo.put("name", "张三丰");
         patientInfo.put("sex", "男");
-        when(patientDao.selectPatientInfoById(patientCardId)).thenReturn(patientInfo);
+        when(patientDao.selectPatientInfoById(patientId)).thenReturn(patientInfo);
 
         // mock 挂号记录
         HashMap<String, Object> registration = new HashMap<>();
@@ -111,27 +112,28 @@ public class PatientServiceImplTest {
         when(patientDao.selectRegistrationsByPatientId(anyMap())).thenReturn(registrations);
 
         // 执行
-        HashMap<String, Object> result = patientService.selectPatientDetail(patientCardId, deptSubId, doctorId);
+        HashMap<String, Object> result = patientService.selectPatientDetail(patientId, deptSubId, doctorId);
 
         // 验证结果包含patientInfo和registrations
         assertNotNull(result);
         assertSame(patientInfo, result.get("patientInfo"));
         assertSame(registrations, result.get("registrations"));
-        verify(patientDao).selectPatientInfoById(patientCardId);
+        assertEquals(1, ((HashMap<String, Object>) result.get("patientInfo")).get("patientId"));
+        verify(patientDao).selectPatientInfoById(patientId);
         verify(patientDao).selectRegistrationsByPatientId(anyMap());
     }
 
     @Test
     @DisplayName("selectPatientDetail_患者不存在 - dao返回null，验证不抛异常")
     void selectPatientDetail_患者不存在() {
-        Integer patientCardId = 999;
+        Integer patientId = 999;
 
         // mock dao返回null
-        when(patientDao.selectPatientInfoById(patientCardId)).thenReturn(null);
+        when(patientDao.selectPatientInfoById(patientId)).thenReturn(null);
         when(patientDao.selectRegistrationsByPatientId(anyMap())).thenReturn(new ArrayList<>());
 
         // 执行，验证不抛异常
-        HashMap<String, Object> result = assertDoesNotThrow(() -> patientService.selectPatientDetail(patientCardId, null, null));
+        HashMap<String, Object> result = assertDoesNotThrow(() -> patientService.selectPatientDetail(patientId, null, null));
 
         // 验证结果中patientInfo为null
         assertNotNull(result);

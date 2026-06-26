@@ -11,7 +11,7 @@ public interface PatientService {
 
     PageUtils selectPatientByPage(Map<String, Object> map);
 
-    HashMap<String, Object> selectPatientDetail(Integer patientCardId, Integer deptSubId, Integer doctorId);
+    HashMap<String, Object> selectPatientDetail(Integer patientId, Integer deptSubId, Integer doctorId);
 
     int insertPatient(PatientUserInfo patient);
 

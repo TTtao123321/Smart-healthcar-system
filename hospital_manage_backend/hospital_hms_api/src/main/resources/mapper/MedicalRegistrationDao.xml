@@ -6,9 +6,9 @@
 
     <insert id="insert" parameterType="com.hospital.hms.pojo.MedicalRegistration" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO medical_registration
-        (patient_card_id, work_plan_id, doctor_schedule_id, doctor_id, dept_sub_id, date, slot, status, payment_status)
+        (patient_id, work_plan_id, doctor_schedule_id, doctor_id, dept_sub_id, date, slot, status, payment_status)
         VALUES
-        (#{patientCardId}, #{workPlanId}, #{doctorScheduleId}, #{doctorId}, #{deptSubId},
+        (#{patientId}, #{workPlanId}, #{doctorScheduleId}, #{doctorId}, #{deptSubId},
          STR_TO_DATE(#{date}, '%Y-%m-%d'), #{slot}, #{status}, #{paymentStatus})
     </insert>
 

@@ -17,18 +17,26 @@ from app.tools.tool_response import empty, err, ok
 logger = logging.getLogger(__name__)
 
 
-def _resolve_patient_card_id(explicit: int | None) -> int | None:
-    """优先用 LLM 显式提供的，其次从 session context 提取"""
-    if explicit is not None:
-        return explicit
-    pid = get_patient_id()
-    if pid is None:
+def _require_session_patient_id() -> int:
+    """从当前请求上下文读取真实患者身份"""
+    patient_id = get_patient_id()
+    if patient_id is None:
         raise ValueError("请先登录后再挂号")
-    return int(pid)
+    return int(patient_id)
 
 
 def create_registration_tools(hms_client: HmsClient):
     """创建挂号相关工具（闭包注入 hms_client）"""
+
+    async def _load_owned_registration(registration_id: int, patient_id: int):
+        result = await hms_client.registration_service.query(
+            RegistrationQueryRequest(
+                patient_id=patient_id,
+                registration_id=registration_id,
+            )
+        )
+        items = result.items if hasattr(result, "items") else []
+        return items[0] if items else None
 
     @tool
     async def create_registration(
@@ -38,7 +46,6 @@ def create_registration_tools(hms_client: HmsClient):
         dept_sub_id: int,
         appointment_date: str,
         slot: int,
-        patient_card_id: int | None = None,
     ) -> str:
         """创建挂号预约。
         当患者明确确认要挂号时使用此工具。调用前必须先通过 query_doctor_schedules
@@ -50,12 +57,11 @@ def create_registration_tools(hms_client: HmsClient):
         dept_sub_id: 诊室ID（必须来自工具返回结果）
         appointment_date: 就诊日期，格式 YYYY-MM-DD
         slot: 时段编号（必须来自 query_schedule_detail 返回结果）
-        patient_card_id: 患者就诊卡ID（可选，未传时从当前会话自动获取）
 
         返回格式：{"ok": true, "summary": "...", "data": {...}}
         """
         try:
-            card_id = _resolve_patient_card_id(patient_card_id)
+            patient_id = _require_session_patient_id()
         except ValueError as e:
             return err(
                 str(e),
@@ -73,7 +79,7 @@ def create_registration_tools(hms_client: HmsClient):
         try:
             result = await hms_client.registration_service.create(
                 RegistrationCreateRequest(
-                    patient_card_id=card_id,
+                    patient_id=patient_id,
                     work_plan_id=work_plan_id,
                     doctor_schedule_id=doctor_schedule_id,
                     doctor_id=doctor_id,
@@ -94,21 +100,17 @@ def create_registration_tools(hms_client: HmsClient):
     @tool
     async def query_registration(
         registration_id: int | None = None,
-        patient_card_id: int | None = None,
     ) -> str:
         """查询挂号记录。
         当患者询问"我的挂号""挂号记录"时使用此工具。
 
         registration_id: 挂号记录ID（可选，查询某条特定记录）
-        patient_card_id: 患者就诊卡ID（可选，未传时从当前会话自动获取，用于查询本人所有挂号）
 
         返回格式：{"ok": true, "summary": "...", "data": [...]}
         """
         try:
-            card_id = _resolve_patient_card_id(patient_card_id)
+            patient_id = _require_session_patient_id()
         except ValueError:
-            card_id = None
-        if registration_id is None and card_id is None:
             return err(
                 "请先登录后再查询挂号记录",
                 "若用户已登录，优先按当前登录患者查询挂号记录。",
@@ -117,7 +119,7 @@ def create_registration_tools(hms_client: HmsClient):
         try:
             result = await hms_client.registration_service.query(
                 RegistrationQueryRequest(
-                    patient_card_id=card_id,
+                    patient_id=patient_id,
                     registration_id=registration_id,
                 )
             )
@@ -144,6 +146,20 @@ def create_registration_tools(hms_client: HmsClient):
         返回格式：{"ok": true, "summary": "...", "data": {...}}
         """
         try:
+            patient_id = _require_session_patient_id()
+        except ValueError as e:
+            return err(
+                str(e),
+                "请先引导用户完成登录，再继续取消挂号流程。",
+            )
+
+        try:
+            item = await _load_owned_registration(registration_id, patient_id)
+            if item is None:
+                return err(
+                    "记录不存在或无权限",
+                    "请告知用户只能取消本人挂号记录。",
+                )
             result = await hms_client.registration_service.cancel(
                 RegistrationCancelRequest(registration_id=registration_id)
             )
