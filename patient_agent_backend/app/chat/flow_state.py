@@ -10,6 +10,7 @@ class FlowState:
     selected_work_plan_id: int | None = None
     selected_schedule_slot: dict | None = None
     pending_registration_confirmation: dict | None = None
+    schedule_candidates_by_work_plan: dict[int, dict] | None = None
 
 
 class InMemoryFlowStateStore:

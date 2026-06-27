@@ -1,6 +1,7 @@
 """医生/排班查询工具"""
 
 import logging
+from datetime import date as date_type
 
 from langchain_core.tools import tool
 
@@ -39,9 +40,83 @@ async def _save_pending_registration_confirmation(result) -> None:
                 "appointment_date": result.date,
                 "slot": selected_schedule.slot,
                 "doctor_name": result.doctor_name,
+                "schedule_options": [
+                    {
+                        "doctor_schedule_id": schedule.id,
+                        "slot": schedule.slot,
+                    }
+                    for schedule in result.schedules
+                ],
             }
         },
     )
+
+
+def _normalize_schedule_item(
+    item: dict,
+    *,
+    dept_sub_id: int | None,
+    appointment_date: str | None,
+) -> dict:
+    normalized = dict(item)
+    if dept_sub_id is not None:
+        normalized.setdefault("deptSubId", dept_sub_id)
+        normalized.setdefault("dept_sub_id", dept_sub_id)
+    if appointment_date:
+        normalized.setdefault("date", appointment_date)
+        normalized.setdefault("appointment_date", appointment_date)
+    return normalized
+
+
+async def _save_schedule_candidates(schedule_items: list[dict]) -> None:
+    thread_key = _build_flow_state_key()
+    if thread_key is None or not schedule_items:
+        return
+
+    store = get_flow_state_store()
+    flow_state = await store.load(thread_key)
+    candidates = dict(flow_state.schedule_candidates_by_work_plan or {})
+
+    for item in schedule_items:
+        work_plan_id = item.get("workPlanId", item.get("work_plan_id"))
+        if not work_plan_id:
+            continue
+        candidates[int(work_plan_id)] = {
+            "doctor_id": item.get("doctorId", item.get("doctor_id")),
+            "doctor_name": item.get("doctorName", item.get("doctor_name")),
+            "dept_sub_id": item.get("deptSubId", item.get("dept_sub_id")),
+            "appointment_date": item.get("date", item.get("appointment_date")),
+        }
+
+    flow_state.schedule_candidates_by_work_plan = candidates
+    await store.save(thread_key, flow_state)
+
+
+async def _hydrate_schedule_detail(result):
+    thread_key = _build_flow_state_key()
+    if thread_key is None:
+        return result
+
+    flow_state = await get_flow_state_store().load(thread_key)
+    candidates = flow_state.schedule_candidates_by_work_plan or {}
+    candidate = candidates.get(int(result.work_plan_id))
+    if not candidate:
+        return result
+
+    updates = {}
+    if result.dept_sub_id is None:
+        updates["dept_sub_id"] = candidate.get("dept_sub_id")
+    if result.date is None:
+        updates["date"] = candidate.get("appointment_date")
+    if result.doctor_id is None:
+        updates["doctor_id"] = candidate.get("doctor_id")
+    if not result.doctor_name:
+        updates["doctor_name"] = candidate.get("doctor_name")
+
+    if not updates:
+        return result
+
+    return result.model_copy(update=updates)
 
 
 def create_doctor_tools(hms_client: HmsClient):
@@ -140,22 +215,42 @@ def create_doctor_tools(hms_client: HmsClient):
 
         # 查询排班
         all_schedules: list = []
+        effective_date = date or date_type.today().isoformat()
         try:
             if sub_dept_ids and doctor_id is None:
                 for sid in sub_dept_ids:
                     resp = await hms_client.doctor_service.schedules(
-                        ScheduleListRequest(dept_sub_id=sid, date=date)
+                        ScheduleListRequest(dept_sub_id=sid, date=effective_date)
                     )
-                    all_schedules.extend(resp.items)
+                    all_schedules.extend(
+                        [
+                            _normalize_schedule_item(
+                                item,
+                                dept_sub_id=sid,
+                                appointment_date=effective_date,
+                            )
+                            for item in resp.items
+                        ]
+                    )
             else:
+                current_sub_dept_id = sub_dept_ids[0] if sub_dept_ids else None
                 resp = await hms_client.doctor_service.schedules(
                     ScheduleListRequest(
-                        dept_sub_id=sub_dept_ids[0] if sub_dept_ids else None,
-                        date=date,
+                        dept_sub_id=current_sub_dept_id,
+                        date=effective_date,
                         doctor_id=doctor_id,
                     )
                 )
-                all_schedules.extend(resp.items)
+                all_schedules.extend(
+                    [
+                        _normalize_schedule_item(
+                            item,
+                            dept_sub_id=current_sub_dept_id,
+                            appointment_date=effective_date,
+                        )
+                        for item in resp.items
+                    ]
+                )
         except Exception as e:
             logger.error(f"query_doctor_schedules 调用 HMS 失败: {e}")
             return err(
@@ -166,6 +261,7 @@ def create_doctor_tools(hms_client: HmsClient):
         if not all_schedules:
             return empty("近期无排班数据")
 
+        await _save_schedule_candidates(all_schedules)
         return ok(f"共找到 {len(all_schedules)} 条排班", all_schedules)
 
     @tool
@@ -187,6 +283,7 @@ def create_doctor_tools(hms_client: HmsClient):
                 "请告知用户系统暂时无法查询，请稍后再试。",
             )
 
+        result = await _hydrate_schedule_detail(result)
         await _save_pending_registration_confirmation(result)
         return ok("排班详情", result.model_dump())
 

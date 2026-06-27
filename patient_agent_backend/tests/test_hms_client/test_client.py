@@ -48,3 +48,27 @@ async def test_request_raises_timeout_error(monkeypatch):
 
     with pytest.raises(HmsTimeoutError):
         await client.post("/patient/selectByPage", json={"page": 1, "length": 20})
+
+
+@pytest.mark.asyncio
+async def test_login_admin_uses_token_name_from_hms_response(monkeypatch):
+    client = HmsClient(base_url="http://test", timeout=1)
+
+    async def fake_post(path, json):
+        return httpx.Response(
+            200,
+            json={
+                "code": 200,
+                "token": "token-123",
+                "tokenName": "token",
+            },
+            request=httpx.Request("POST", "http://test/user/login"),
+        )
+
+    monkeypatch.setattr(client._http, "post", fake_post)
+
+    await client.login_admin(username="admin", password="admin123")
+
+    assert client._sa_token == "token-123"
+    assert client._http.headers.get("token") == "token-123"
+    assert "satoken" not in client._http.headers

@@ -48,23 +48,25 @@ def create_registration_tools(hms_client: HmsClient):
 
     @tool
     async def create_registration(
-        work_plan_id: int,
-        doctor_schedule_id: int,
-        doctor_id: int,
-        dept_sub_id: int,
-        appointment_date: str,
         slot: int,
+        work_plan_id: int | None = None,
+        doctor_schedule_id: int | None = None,
+        doctor_id: int | None = None,
+        dept_sub_id: int | None = None,
+        appointment_date: str | None = None,
     ) -> str:
         """创建挂号预约。
         当患者明确确认要挂号时使用此工具。调用前必须先通过 query_doctor_schedules
         和 query_schedule_detail 获取真实的 work_plan_id、doctor_schedule_id 等字段。
+        如果当前对话已经存在待确认挂号状态，用户只确认具体时段时，可仅提供 slot，
+        其余字段将从待确认状态自动补齐。
 
+        slot: 时段编号（必须来自 query_schedule_detail 返回结果）
         work_plan_id: 出诊计划ID（必须来自 query_doctor_schedules 返回结果）
         doctor_schedule_id: 排班时段ID（必须来自 query_schedule_detail 返回结果）
         doctor_id: 医生ID（必须来自工具返回结果）
         dept_sub_id: 诊室ID（必须来自工具返回结果）
         appointment_date: 就诊日期，格式 YYYY-MM-DD
-        slot: 时段编号（必须来自 query_schedule_detail 返回结果）
 
         返回格式：{"ok": true, "summary": "...", "data": {...}}
         """
@@ -91,6 +93,38 @@ def create_registration_tools(hms_client: HmsClient):
                 "请先向用户展示待确认挂号信息，收到明确确认后再创建挂号。",
             )
 
+        schedule_options = pending_confirmation.get("schedule_options") or []
+        if doctor_schedule_id is None and schedule_options:
+            matched = next(
+                (item for item in schedule_options if item.get("slot") == slot),
+                None,
+            )
+            if matched:
+                doctor_schedule_id = matched.get("doctor_schedule_id")
+
+        work_plan_id = work_plan_id or pending_confirmation.get("work_plan_id")
+        doctor_schedule_id = doctor_schedule_id or pending_confirmation.get("doctor_schedule_id")
+        doctor_id = doctor_id or pending_confirmation.get("doctor_id")
+        dept_sub_id = dept_sub_id or pending_confirmation.get("dept_sub_id")
+        appointment_date = appointment_date or pending_confirmation.get("appointment_date")
+
+        missing_fields = [
+            field_name
+            for field_name, field_value in (
+                ("work_plan_id", work_plan_id),
+                ("doctor_schedule_id", doctor_schedule_id),
+                ("doctor_id", doctor_id),
+                ("dept_sub_id", dept_sub_id),
+                ("appointment_date", appointment_date),
+            )
+            if field_value in (None, "")
+        ]
+        if missing_fields:
+            return err(
+                f"挂号参数缺失: {', '.join(missing_fields)}",
+                "请告知用户当前挂号确认信息不完整，请重新选择医生和时段。",
+            )
+
         try:
             appt_date = date_type.fromisoformat(appointment_date)
         except ValueError:
@@ -103,10 +137,10 @@ def create_registration_tools(hms_client: HmsClient):
             result = await hms_client.registration_service.create(
                 RegistrationCreateRequest(
                     patient_id=patient_id,
-                    work_plan_id=work_plan_id,
-                    doctor_schedule_id=doctor_schedule_id,
-                    doctor_id=doctor_id,
-                    dept_sub_id=dept_sub_id,
+                    work_plan_id=int(work_plan_id),
+                    doctor_schedule_id=int(doctor_schedule_id),
+                    doctor_id=int(doctor_id),
+                    dept_sub_id=int(dept_sub_id),
                     appointment_date=appt_date,
                     slot=slot,
                 )

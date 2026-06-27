@@ -31,6 +31,7 @@ class HmsClient:
             timeout=self._timeout,
         )
         self._sa_token: str | None = None
+        self._token_header_name = "satoken"
 
         # 初始化服务
         self.dept_service = DeptService(self)
@@ -56,9 +57,15 @@ class HmsClient:
             token = data.get("token", "")
             if not token:
                 token = data.get("result", {}).get("token", "")
+            token_name = data.get("tokenName", "")
+            if not token_name:
+                token_name = data.get("result", {}).get("tokenName", "")
             if token:
                 self._sa_token = token
-                self._http.headers["satoken"] = token
+                self._token_header_name = token_name or "satoken"
+                self._http.headers.pop("satoken", None)
+                self._http.headers.pop("token", None)
+                self._http.headers[self._token_header_name] = token
                 logger.info("HMS 管理员登录成功")
             else:
                 logger.warning(
@@ -75,12 +82,15 @@ class HmsClient:
     def set_token(self, token: str) -> None:
         """设置 SaToken 认证头"""
         self._sa_token = token
-        self._http.headers["satoken"] = token
+        self._http.headers.pop("satoken", None)
+        self._http.headers.pop("token", None)
+        self._http.headers[self._token_header_name] = token
 
     def clear_token(self) -> None:
         """清除认证 token"""
         self._sa_token = None
         self._http.headers.pop("satoken", None)
+        self._http.headers.pop("token", None)
 
     async def get(self, path: str, params: dict | None = None) -> Any:
         """发送 GET 请求"""

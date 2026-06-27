@@ -9,6 +9,13 @@ def _format_date_label(current_date: date) -> str:
 
 
 def _slot_to_time_range(slot: int) -> str:
+    if isinstance(slot, list):
+        labels = []
+        if any(slot[:8]):
+            labels.append("08:00-12:00")
+        if any(slot[8:]):
+            labels.append("14:00-17:30")
+        return " / ".join(labels)
     if slot <= 0:
         return ""
     if slot <= 8:

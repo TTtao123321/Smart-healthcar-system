@@ -160,12 +160,18 @@ class DoctorService:
 
         result = data.get("result", {})
         schedules = []
-        for s in result.get("schedules", result.get("scheduleList", [])):
+        raw_schedules = result.get("schedules")
+        if raw_schedules is None:
+            raw_schedules = result.get("scheduleList")
+        if raw_schedules is None:
+            raw_schedules = result.get("slots", [])
+
+        for s in raw_schedules:
             schedules.append(ScheduleItem(
-                id=s.get("id", 0),
+                id=s.get("id", s.get("scheduleId", 0)),
                 work_plan_id=s.get("workPlanId", s.get("work_plan_id", 0)),
                 slot=s.get("slot", 0),
-                maximum=s.get("maximum", 0),
+                maximum=s.get("maximum", result.get("maximum", 0)),
                 num=s.get("num", 0),
             ))
 

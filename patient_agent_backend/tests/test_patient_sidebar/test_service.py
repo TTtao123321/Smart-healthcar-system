@@ -1,6 +1,7 @@
 import pytest
 
 from app.patient_profile.models import PatientProfile
+from app.patient_sidebar.schedule_gateway import PatientScheduleGateway
 from app.patient_sidebar.service import PatientSidebarService
 
 
@@ -63,3 +64,51 @@ async def test_get_sidebar_aggregates_profile_visits_and_schedule():
     assert result.profile.patientId == "123"
     assert result.recentVisits[0].doctorName == "李芳"
     assert result.schedule.departments[0].departmentName == "内科"
+
+
+class StubDeptServiceForGateway:
+    async def list_all_names(self):
+        return [type("Dept", (), {"id": 1, "name": "内科"})()]
+
+    async def list_sub_depts(self, dept_id: int):
+        return [type("SubDept", (), {"id": 2, "name": "口腔颌面内科"})()]
+
+
+class StubDoctorServiceForGateway:
+    async def list_by_sub_dept(self, dept_sub_id: int):
+        return [type("Doctor", (), {
+            "id": 1,
+            "name": "李雨萌",
+            "job": "主任医师",
+            "description": "擅长口腔诊疗",
+        })()]
+
+    async def schedules(self, request):
+        return type("Schedules", (), {
+            "items": [
+                {
+                    "doctorId": 1,
+                    "doctorName": "李雨萌",
+                    "workPlanId": 210,
+                    "maximum": 10,
+                    "slot": [
+                        True, True, True, False, False, False, False, False,
+                        False, False, False, False, False, False, False,
+                    ],
+                }
+            ]
+        })()
+
+
+@pytest.mark.asyncio
+async def test_schedule_gateway_handles_boolean_slot_array():
+    gateway = PatientScheduleGateway(
+        dept_service=StubDeptServiceForGateway(),
+        doctor_service=StubDoctorServiceForGateway(),
+    )
+
+    result = await gateway.get_today_schedule()
+
+    assert result["departments"][0]["departmentName"] == "内科"
+    assert result["departments"][0]["doctors"][0]["doctorName"] == "李雨萌"
+    assert result["departments"][0]["doctors"][0]["timeSlots"] == ["08:00-12:00"]

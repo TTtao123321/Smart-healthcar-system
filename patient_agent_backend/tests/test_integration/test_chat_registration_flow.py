@@ -93,4 +93,10 @@ def test_chat_registration_flow_sets_pending_confirmation_state():
         "appointment_date": "2026-06-26",
         "slot": 1,
         "doctor_name": "张医生",
+        "schedule_options": [
+            {
+                "doctor_schedule_id": 2,
+                "slot": 1,
+            }
+        ],
     }

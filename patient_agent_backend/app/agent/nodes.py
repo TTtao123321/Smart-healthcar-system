@@ -123,8 +123,18 @@ async def agent(state: AgentState, tools: list) -> dict:
             last_user_content = str(message.content)
             break
 
+    tool_rounds = 0
+    max_tool_rounds = 5
+
     # 如果 LLM 调用了工具，执行工具并将结果作为上下文再次调用 LLM
-    if isinstance(response, AIMessage) and response.tool_calls:
+    while isinstance(response, AIMessage) and response.tool_calls:
+        tool_rounds += 1
+        if tool_rounds > max_tool_rounds:
+            logger.error("工具调用轮次超过上限: %s", max_tool_rounds)
+            return {
+                "messages": [AIMessage(content="系统暂时无法处理该请求，请稍后再试。")]
+            }
+
         # 构建工具名称到函数的映射
         tool_map = {t.name: t for t in tools}
         normalized_tool_calls = []
@@ -207,18 +217,19 @@ async def agent(state: AgentState, tools: list) -> dict:
                     )
                 )
 
-        # 添加数据真实性提醒
+        # 添加数据真实性提醒，让模型决定是否继续调用下一个工具或直接回复
         llm_messages.append(HumanMessage(
             content=(
-                "【重要提醒】请基于以上工具返回的真实数据生成回复。"
-                "如果工具返回结果为空或查询失败，你必须如实告知用户'暂时无法获取该信息，请稍后再试'。"
+                "【重要提醒】请基于以上工具返回的真实数据继续处理用户请求。"
+                "如果当前信息仍不足以完成用户目标，请继续调用下一个必要工具；"
+                "如果信息已经足够，请直接生成最终回复。"
+                "若工具返回结果为空或查询失败，你必须如实告知用户'暂时无法获取该信息，请稍后再试'。"
                 "严禁编造任何科室名称、医生姓名、职称、地址等医院信息。"
             )
         ))
 
-        # 再次调用 LLM（不带工具），生成最终回复
-        llm_no_tools = _get_llm()
-        response = await llm_no_tools.ainvoke(llm_messages)
+        # 继续调用带工具的 LLM，直到不再需要工具
+        response = await llm.ainvoke(llm_messages)
 
     return {"messages": [response]}
 
