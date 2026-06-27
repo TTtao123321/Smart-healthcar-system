@@ -1,3 +1,6 @@
+from typing import Literal
+
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 
@@ -6,7 +9,12 @@ class Settings(BaseSettings):
 
     # 应用
     app_name: str = "patient-agent-backend"
+    app_env: Literal["development", "test", "production"] = "development"
     debug: bool = False
+    log_level: str = "INFO"
+    cors_allowed_origins: list[str] | str = "http://localhost:5173"
+    cors_allow_credentials: bool = True
+    sms_return_code_dev: bool = True
 
     # HMS API
     hms_api_url: str = "http://localhost:8080"
@@ -36,6 +44,27 @@ class Settings(BaseSettings):
 
     # 安全护栏
     max_unanswered_turns: int = 3
+
+    @field_validator("cors_allowed_origins", mode="before")
+    @classmethod
+    def parse_cors_allowed_origins(cls, value):
+        if value is None or value == "":
+            return ["http://localhost:5173"]
+        if isinstance(value, str):
+            if value == "*":
+                return ["*"]
+            return [item.strip() for item in value.split(",") if item.strip()]
+        return value
+
+    @model_validator(mode="after")
+    def validate_cors(self):
+        if (
+            self.app_env == "production"
+            and self.cors_allow_credentials
+            and "*" in self.cors_allowed_origins
+        ):
+            raise ValueError("生产环境不允许在开启凭证时使用通配符 CORS")
+        return self
 
     model_config = {
         "env_file": ".env",

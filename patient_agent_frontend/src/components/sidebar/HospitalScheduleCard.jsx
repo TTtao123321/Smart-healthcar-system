@@ -43,7 +43,13 @@ function buildDepartmentSummary(department) {
   }
 }
 
-export default function HospitalScheduleCard({ user, onSendChat, departments, dateLabel, loading }) {
+export default function HospitalScheduleCard({
+  user,
+  onSidebarAction,
+  departments,
+  dateLabel,
+  loading,
+}) {
   const [expandedDeptIndex, setExpandedDeptIndex] = useState(null)
   const [confirmDoctor, setConfirmDoctor] = useState(null)
   const firstActiveDeptIndex = useMemo(
@@ -77,7 +83,11 @@ export default function HospitalScheduleCard({ user, onSendChat, departments, da
   const handleConfirm = () => {
     if (!activeDepartment || !confirmDoctor) return
 
-    onSendChat(`我要预约挂号：${activeDepartment.departmentName} · ${confirmDoctor.doctorName}（${confirmDoctor.title}）`)
+    onSidebarAction?.('confirm_registration', {
+      department_name: activeDepartment.departmentName,
+      doctor_id: confirmDoctor.doctorId,
+      doctor_name: confirmDoctor.doctorName,
+    })
     setConfirmDoctor(null)
   }
 

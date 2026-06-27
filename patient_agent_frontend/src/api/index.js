@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { clearCurrentSessionCache, loadCurrentToken } from '../storage/patientCache.js'
 
 const api = axios.create({
   baseURL: '/api',
@@ -8,7 +9,7 @@ const api = axios.create({
 
 // 请求拦截器：自动附加 token
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('patient_token')
+  const token = loadCurrentToken()
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
@@ -20,8 +21,7 @@ api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401) {
-      localStorage.removeItem('patient_token')
-      localStorage.removeItem('patient_user')
+      clearCurrentSessionCache()
       window.location.reload()
     }
     return Promise.reject(err)
@@ -54,13 +54,12 @@ export const chatApi = {
   },
   /** 发送消息（SSE 流式） */
   sendStream(message, threadId) {
+    const token = loadCurrentToken()
     return fetch('/api/chat/stream', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(localStorage.getItem('patient_token')
-          ? { Authorization: `Bearer ${localStorage.getItem('patient_token')}` }
-          : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify({ message, thread_id: threadId }),
     })
@@ -68,6 +67,14 @@ export const chatApi = {
   /** 获取对话历史 */
   getHistory(threadId) {
     return api.get('/chat/history', { params: { thread_id: threadId } })
+  },
+  /** 获取历史会话列表 */
+  getThreads() {
+    return api.get('/chat/threads')
+  },
+  /** 删除单条历史会话 */
+  deleteThread(threadId) {
+    return api.delete(`/chat/threads/${threadId}`)
   },
 }
 
@@ -79,6 +86,13 @@ export const patientApi = {
   },
   getSidebar() {
     return api.get('/patient/sidebar')
+  },
+  sidebarAction(action, threadId, payload) {
+    return api.post('/patient/sidebar/action', {
+      action,
+      thread_id: threadId,
+      payload,
+    })
   },
   updateProfile(payload) {
     return api.post('/patient/profile', payload)

@@ -1,16 +1,16 @@
 import json
-import logging
 import re
 from typing import AsyncIterator, Callable
 
 from langchain_core.messages import AIMessage, HumanMessage
 
-from app.agent.request_context import set_patient_session
+from app.agent.request_context import set_patient_session, set_thread_id
 from app.agent.state import AgentState
+from app.logging_utils import get_request_logger, log_chat_result
 from app.chat.models import ChatRunResult, ChatStreamEvent
 from app.chat.output_filters import sanitize_visible_message
 
-logger = logging.getLogger(__name__)
+logger = get_request_logger(__name__)
 
 
 class ChatOrchestrator:
@@ -62,20 +62,44 @@ class ChatOrchestrator:
         history.append({"role": "user", "content": user_message})
         history.append({"role": "assistant", "content": assistant_message})
         await self._memory.save_messages(patient_id, thread_id, history)
+        if hasattr(self._memory, "save_thread_snapshot"):
+            await self._memory.save_thread_snapshot(patient_id, thread_id, history)
 
     async def run_once(self, *, session, user_message: str, thread_id: str) -> ChatRunResult:
         set_patient_session(session)
+        set_thread_id(thread_id)
         history = await self._load_history(session.patient_id, thread_id)
         state: AgentState = self._build_state(history, user_message, session.patient_id)
 
         result = await self._graph_factory().ainvoke(state)
+        raw_reply = ""
+        raw_reply_type = "none"
+        for msg in reversed(result.get("messages", [])):
+            if isinstance(msg, AIMessage) and msg.content:
+                raw_reply = str(msg.content)
+                raw_reply_type = type(msg.content).__name__
+                break
         reply = self._extract_reply(result)
+        logger.info(
+            "chat_reply_extracted",
+            extra={
+                "raw_reply_type": raw_reply_type,
+                "raw_reply_preview": raw_reply[:200],
+                "cleaned_reply_preview": reply[:200],
+            },
+        )
         await self._save_history(
             patient_id=session.patient_id,
             thread_id=thread_id,
             history=history,
             user_message=user_message,
             assistant_message=reply,
+        )
+        log_chat_result(
+            logger,
+            guardrail_result=result.get("guardrail_result"),
+            reply_type="normal",
+            degraded=False,
         )
 
         return ChatRunResult(
@@ -96,6 +120,7 @@ class ChatOrchestrator:
         thread_id: str,
     ) -> AsyncIterator[ChatStreamEvent]:
         set_patient_session(session)
+        set_thread_id(thread_id)
         history = await self._load_history(session.patient_id, thread_id)
         state: AgentState = self._build_state(history, user_message, session.patient_id)
         graph = self._graph_factory()
@@ -253,9 +278,21 @@ class ChatOrchestrator:
                 user_message=user_message,
                 assistant_message=final_message,
             )
+            log_chat_result(
+                logger,
+                guardrail_result=None,
+                reply_type="stream",
+                degraded=False,
+            )
             yield ChatStreamEvent(event="done", data={"thread_id": thread_id})
         except Exception as exc:
             logger.error("Agent 流式执行失败: %s", exc, exc_info=True)
+            log_chat_result(
+                logger,
+                guardrail_result=None,
+                reply_type="stream_error",
+                degraded=True,
+            )
             yield ChatStreamEvent(
                 event="message",
                 data={"content": "智能助手暂时无法响应，请稍后再试。", "thread_id": thread_id},

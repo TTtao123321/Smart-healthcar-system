@@ -11,6 +11,7 @@ class FakeMemory:
     def __init__(self):
         self.loaded = []
         self.saved = []
+        self.thread_list_calls = []
 
     async def load_messages(self, patient_id, thread_id):
         self.loaded.append((patient_id, thread_id))
@@ -18,6 +19,10 @@ class FakeMemory:
 
     async def save_messages(self, patient_id, thread_id, history):
         self.saved.append((patient_id, thread_id, history))
+
+    async def list_threads(self, patient_id, limit=None):
+        self.thread_list_calls.append((patient_id, limit))
+        return []
 
 
 class FakeGraph:
@@ -88,3 +93,18 @@ def test_chat_history_uses_authenticated_patient_id():
 
     assert response.status_code == 200
     assert memory.loaded[0][0] == 88
+
+
+def test_chat_threads_uses_authenticated_patient_id():
+    memory = FakeMemory()
+    graph = FakeGraph()
+    client = create_client(memory, graph, with_auth_override=True)
+
+    response = client.get(
+        "/api/chat/threads",
+        headers={"Authorization": "Bearer token-1"},
+        params={"patient_id": 999},
+    )
+
+    assert response.status_code == 200
+    assert memory.thread_list_calls[0][0] == 88

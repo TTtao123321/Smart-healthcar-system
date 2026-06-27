@@ -145,6 +145,43 @@ describe('HospitalScheduleCard', () => {
     expect(screen.queryByText('确认挂号信息')).not.toBeInTheDocument()
   })
 
+  it('submits confirm registration through structured sidebar action', () => {
+    const onSidebarAction = vi.fn()
+
+    render(
+      <HospitalScheduleCard
+        user={{ name: '张三' }}
+        onSidebarAction={onSidebarAction}
+        dateLabel="2026年6月25日 周四"
+        loading={false}
+        departments={[
+          {
+            departmentId: 'dept-1',
+            departmentName: '心血管内科',
+            doctors: [
+              {
+                doctorId: 'doctor-1',
+                doctorName: '王主任',
+                title: '主任医师',
+                bio: '擅长冠心病与高血压诊疗',
+                timeSlots: ['08:00-12:00'],
+              },
+            ],
+          },
+        ]}
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: '预约挂号' }))
+    fireEvent.click(screen.getByRole('button', { name: '确认挂号' }))
+
+    expect(onSidebarAction).toHaveBeenCalledWith('confirm_registration', {
+      department_name: '心血管内科',
+      doctor_id: 'doctor-1',
+      doctor_name: '王主任',
+    })
+  })
+
   it('keeps profile bounded and preserves schedule scrolling rules on short viewports', () => {
     const { container } = render(
       <HospitalScheduleCard

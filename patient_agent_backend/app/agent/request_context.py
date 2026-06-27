@@ -7,6 +7,7 @@ from app.auth.models import PatientSession
 current_patient_session: ContextVar[PatientSession | None] = ContextVar(
     "current_patient_session", default=None
 )
+current_thread_id: ContextVar[str | None] = ContextVar("current_thread_id", default=None)
 
 
 def set_patient_session(session: PatientSession | None) -> None:
@@ -25,3 +26,13 @@ def get_patient_id() -> int | None:
     if session is None:
         return None
     return session.patient_id
+
+
+def set_thread_id(thread_id: str | None) -> None:
+    """设置当前请求的线程 ID"""
+    current_thread_id.set(thread_id)
+
+
+def get_thread_id() -> str | None:
+    """获取当前请求的线程 ID"""
+    return current_thread_id.get()

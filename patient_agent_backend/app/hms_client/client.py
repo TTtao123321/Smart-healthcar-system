@@ -12,11 +12,12 @@ from app.hms_client.exceptions import (
     HmsTimeoutError,
     HmsValidationError,
 )
+from app.logging_utils import get_request_logger
 from app.hms_client.services.dept_service import DeptService
 from app.hms_client.services.doctor_service import DoctorService
 from app.hms_client.services.registration_service import RegistrationService
 
-logger = logging.getLogger(__name__)
+logger = get_request_logger(__name__)
 
 
 class HmsClient:
@@ -60,9 +61,15 @@ class HmsClient:
                 self._http.headers["satoken"] = token
                 logger.info("HMS 管理员登录成功")
             else:
-                logger.warning(f"HMS 登录未获取到 token: {data}")
+                logger.warning(
+                    f"HMS 登录未获取到 token: {data}",
+                    extra={"hms_error_type": "missing_token"},
+                )
         except Exception as e:
-            logger.error(f"HMS 管理员登录失败: {e}")
+            logger.error(
+                f"HMS 管理员登录失败: {e}",
+                extra={"hms_error_type": type(e).__name__},
+            )
             # 不抛出异常，允许服务在无认证模式下启动（开发调试用）
 
     def set_token(self, token: str) -> None:
@@ -88,10 +95,16 @@ class HmsClient:
         try:
             response = await self._http.request(method, path, **kwargs)
         except httpx.TimeoutException as e:
-            logger.error(f"HMS 请求超时: {method} {path}")
+            logger.error(
+                f"HMS 请求超时: {method} {path}",
+                extra={"hms_error_type": "timeout"},
+            )
             raise HmsTimeoutError(f"请求超时: {path}") from e
         except httpx.RequestError as e:
-            logger.error(f"HMS 请求失败: {method} {path}, error: {e}")
+            logger.error(
+                f"HMS 请求失败: {method} {path}, error: {e}",
+                extra={"hms_error_type": type(e).__name__},
+            )
             raise HmsClientError(f"请求失败: {path}") from e
 
         # 处理响应状态码

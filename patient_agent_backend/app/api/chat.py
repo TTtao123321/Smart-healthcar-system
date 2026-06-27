@@ -101,3 +101,27 @@ async def chat_history(
     memory = get_memory()
     messages = await memory.load_messages(session.patient_id, thread_id)
     return {"messages": messages, "thread_id": thread_id}
+
+
+@router.get("/threads")
+async def chat_threads(
+    session: PatientSession = Depends(require_patient_session),
+):
+    """获取当前患者的历史会话列表"""
+    memory = get_memory()
+    threads = await memory.list_threads(session.patient_id)
+    return {"threads": threads}
+
+
+@router.delete("/threads/{thread_id}")
+async def delete_chat_thread(
+    thread_id: str,
+    session: PatientSession = Depends(require_patient_session),
+):
+    """删除当前患者的历史会话"""
+    if not thread_id:
+        raise HTTPException(status_code=400, detail="thread_id 不能为空")
+
+    memory = get_memory()
+    await memory.delete_thread(session.patient_id, thread_id)
+    return {"ok": True}

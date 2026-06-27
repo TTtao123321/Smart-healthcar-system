@@ -7,11 +7,13 @@ DIAGNOSIS_PATTERNS: list[re.Pattern] = [
     re.compile(p, re.IGNORECASE)
     for p in [
         r"诊断",
+        r"判断是不是",
         r"治疗方案",
         r"吃什么药",
         r"用什么药",
         r"严重吗",
         r"是不是.*病",
+        r"是不是.*(炎|癌|症)",
         r"得了.*病",
         r"有没有.*病",
         r"确诊",

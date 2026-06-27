@@ -7,13 +7,14 @@ from typing import Any
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
+from app.logging_utils import get_request_logger
 from app.agent.prompts import HANDOFF_MESSAGE, SYSTEM_PROMPT
 from app.agent.state import AgentState
 from app.config.settings import settings
 from app.guardrails.input_guard import check_input
 from app.guardrails.output_guard import check_output
 
-logger = logging.getLogger(__name__)
+logger = get_request_logger(__name__)
 
 # 复用 LLM 实例（避免每次请求重新创建）
 _llm: ChatOpenAI | None = None
@@ -152,6 +153,10 @@ async def agent(state: AgentState, tools: list) -> dict:
             tool_args = tool_call["args"]
             if tool_name in tool_map:
                 try:
+                    logger.info(
+                        "tool_call_start",
+                        extra={"tool_name": tool_name, "tool_status": "start"},
+                    )
                     tool_result = await tool_map[tool_name].ainvoke(tool_args)
                     tool_result_str = str(tool_result)
                     # 工具现在统一返回 JSON {ok, summary/error, data, hint}，
@@ -180,8 +185,16 @@ async def agent(state: AgentState, tools: list) -> dict:
                             content=f"工具 {tool_name} 返回结果：\n{tool_result_str}"
                         )
                     )
+                    logger.info(
+                        "tool_call_end",
+                        extra={"tool_name": tool_name, "tool_status": "success"},
+                    )
                 except Exception as e:
                     logger.error(f"工具 {tool_name} 执行失败: {e}")
+                    logger.error(
+                        "tool_call_end",
+                        extra={"tool_name": tool_name, "tool_status": "error"},
+                    )
                     llm_messages.append(
                         HumanMessage(
                             content=f"工具 {tool_name} 执行失败：{str(e)}。请告知用户系统暂时无法查询该信息，不要编造任何数据。"

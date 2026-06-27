@@ -5,7 +5,8 @@ from datetime import date as date_type
 
 from langchain_core.tools import tool
 
-from app.agent.request_context import get_patient_id
+from app.agent.request_context import get_patient_id, get_thread_id
+from app.chat.flow_state import get_flow_state_store
 from app.hms_client import HmsClient
 from app.hms_client.models import (
     RegistrationCancelRequest,
@@ -23,6 +24,13 @@ def _require_session_patient_id() -> int:
     if patient_id is None:
         raise ValueError("请先登录后再挂号")
     return int(patient_id)
+
+
+def _build_flow_state_key(patient_id: int) -> str:
+    thread_id = get_thread_id()
+    if not thread_id:
+        raise ValueError("当前对话线程不存在，请重新发起挂号流程")
+    return f"patient:{patient_id}:{thread_id}"
 
 
 def create_registration_tools(hms_client: HmsClient):
@@ -69,6 +77,21 @@ def create_registration_tools(hms_client: HmsClient):
             )
 
         try:
+            flow_state = await get_flow_state_store().load(_build_flow_state_key(patient_id))
+        except ValueError as e:
+            return err(
+                str(e),
+                "请引导用户重新开始挂号流程。",
+            )
+
+        pending_confirmation = flow_state.pending_registration_confirmation
+        if pending_confirmation is None:
+            return err(
+                "请先确认挂号信息",
+                "请先向用户展示待确认挂号信息，收到明确确认后再创建挂号。",
+            )
+
+        try:
             appt_date = date_type.fromisoformat(appointment_date)
         except ValueError:
             return err(
@@ -94,6 +117,8 @@ def create_registration_tools(hms_client: HmsClient):
                 f"挂号失败: {e}",
                 "请告知用户挂号失败，建议稍后再试或转人工客服。",
             )
+
+        await get_flow_state_store().delete(_build_flow_state_key(patient_id))
 
         return ok("挂号成功", result.model_dump())
 

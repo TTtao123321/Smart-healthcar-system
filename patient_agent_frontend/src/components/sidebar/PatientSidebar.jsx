@@ -14,7 +14,7 @@ const fallbackSidebar = {
   },
 }
 
-export default function PatientSidebar({ user, onSendChat }) {
+export default function PatientSidebar({ user, onSidebarAction }) {
   const [sidebar, setSidebar] = useState(fallbackSidebar)
   const [loading, setLoading] = useState(true)
   const [loadFailed, setLoadFailed] = useState(false)
@@ -50,7 +50,7 @@ export default function PatientSidebar({ user, onSendChat }) {
       />
       <HospitalScheduleCard
         user={user}
-        onSendChat={onSendChat}
+        onSidebarAction={onSidebarAction}
         departments={sidebar.schedule?.departments || []}
         dateLabel={sidebar.schedule?.dateLabel || scheduleDateLabel}
         loading={loading}

@@ -4,12 +4,44 @@ import logging
 
 from langchain_core.tools import tool
 
+from app.agent.request_context import get_patient_id, get_thread_id
+from app.chat.flow_state import get_flow_state_store
 from app.hms_client import HmsClient
 from app.hms_client.models import ScheduleDetailRequest, ScheduleListRequest
 from app.tools.name_resolver import resolve_doctor, resolve_sub_dept
 from app.tools.tool_response import empty, err, ok
 
 logger = logging.getLogger(__name__)
+
+
+def _build_flow_state_key() -> str | None:
+    patient_id = get_patient_id()
+    thread_id = get_thread_id()
+    if patient_id is None or not thread_id:
+        return None
+    return f"patient:{patient_id}:{thread_id}"
+
+
+async def _save_pending_registration_confirmation(result) -> None:
+    thread_key = _build_flow_state_key()
+    if thread_key is None or not result.schedules:
+        return
+
+    selected_schedule = result.schedules[0]
+    await get_flow_state_store().save(
+        thread_key,
+        {
+            "pending_registration_confirmation": {
+                "work_plan_id": result.work_plan_id,
+                "doctor_schedule_id": selected_schedule.id,
+                "doctor_id": result.doctor_id,
+                "dept_sub_id": result.dept_sub_id,
+                "appointment_date": result.date,
+                "slot": selected_schedule.slot,
+                "doctor_name": result.doctor_name,
+            }
+        },
+    )
 
 
 def create_doctor_tools(hms_client: HmsClient):
@@ -155,6 +187,7 @@ def create_doctor_tools(hms_client: HmsClient):
                 "请告知用户系统暂时无法查询，请稍后再试。",
             )
 
+        await _save_pending_registration_confirmation(result)
         return ok("排班详情", result.model_dump())
 
     return [query_doctors, query_doctor_schedules, query_schedule_detail]

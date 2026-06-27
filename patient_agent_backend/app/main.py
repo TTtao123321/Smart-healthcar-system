@@ -18,6 +18,7 @@ from app.api.patient import router as patient_router
 from app.config.settings import settings
 from app.hms_client import HmsClient
 from app.memory.redis_memory import RedisMemory
+from app.middleware.request_context import RequestContextMiddleware
 from app.patient_profile.repository import PatientProfileRepository
 from app.patient_profile.service import PatientProfileService
 from app.patient_sidebar.schedule_gateway import PatientScheduleGateway
@@ -115,13 +116,15 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(RequestContextMiddleware)
+
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=settings.cors_allowed_origins,
+    allow_credentials=settings.cors_allow_credentials,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
 )
 
 # 注册路由
