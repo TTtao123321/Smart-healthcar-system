@@ -1,6 +1,17 @@
 import { useState, useEffect, useCallback, createContext, useContext, useRef } from 'react'
-import { authApi, chatApi } from './api/index.js'
+import { authApi, chatApi, patientApi } from './api/index.js'
 import PatientSidebar from './components/sidebar/PatientSidebar.jsx'
+import {
+  clearCurrentSessionCache,
+  loadCurrentUser,
+  loadPatientMessages,
+  loadPatientThreads,
+  purgeLegacyCacheKeys,
+  replaceCurrentSession,
+  restorePatientThreads,
+  savePatientMessages,
+  savePatientThreads,
+} from './storage/patientCache.js'
 import {
   User, Lock, CheckCircle, ArrowRight,
   LogOut, Trash2, Send, Shield, Eye, EyeOff,
@@ -35,13 +46,6 @@ function formatShortTime(date) {
   return `${date.getMonth() + 1}/${date.getDate()}`
 }
 
-const STORAGE_KEYS = {
-  TOKEN: 'patient_token',
-  USER: 'patient_user',
-  THREADS: 'patient_threads',
-  MESSAGES: 'patient_messages',
-}
-
 const TOOL_NAME_MAP = {
   query_departments: '查询科室列表',
   query_dept_detail: '查询科室详情',
@@ -54,24 +58,12 @@ const TOOL_NAME_MAP = {
   cancel_registration: '取消挂号',
 }
 
-function loadFromStorage(key, fallback) {
-  try {
-    const raw = localStorage.getItem(key)
-    return raw ? JSON.parse(raw) : fallback
-  } catch {
-    return fallback
-  }
-}
-
-function saveToStorage(key, value) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value))
-  } catch { /* ignore */ }
-}
-
 export default function App() {
   const [toastMsg, setToastMsg] = useState(null)
-  const [user, setUser] = useState(() => loadFromStorage(STORAGE_KEYS.USER, null))
+  const [user, setUser] = useState(() => {
+    purgeLegacyCacheKeys()
+    return loadCurrentUser()
+  })
 
   const showToast = useCallback((msg) => {
     setToastMsg(msg)
@@ -85,10 +77,7 @@ export default function App() {
 
   const handleLogout = useCallback(() => {
     setUser(null)
-    localStorage.removeItem(STORAGE_KEYS.TOKEN)
-    localStorage.removeItem(STORAGE_KEYS.USER)
-    localStorage.removeItem(STORAGE_KEYS.THREADS)
-    localStorage.removeItem(STORAGE_KEYS.MESSAGES)
+    clearCurrentSessionCache()
     showToast('已退出登录')
   }, [showToast])
 
@@ -160,8 +149,7 @@ function LoginPage({ onLogin }) {
       const res = await authApi.login(phone, code.trim())
       const { token, patient_id, name } = res.data
       const userInfo = { name, token, patient_id, phone }
-      localStorage.setItem(STORAGE_KEYS.TOKEN, token)
-      saveToStorage(STORAGE_KEYS.USER, userInfo)
+      replaceCurrentSession({ token, user: userInfo })
       onLogin(userInfo)
     } catch (err) {
       showToast(err.response?.data?.detail || '登录失败，请检查验证码')
@@ -243,9 +231,10 @@ function LoginPage({ onLogin }) {
 
 function ChatPage({ user, onLogout }) {
   const showToast = useToast()
-  const [threads, setThreads] = useState(() => loadFromStorage(STORAGE_KEYS.THREADS, []))
+  const patientId = user?.patient_id ?? null
+  const [threads, setThreads] = useState(() => loadPatientThreads(patientId))
   const [currentThreadId, setCurrentThreadId] = useState(null)
-  const [messagesMap, setMessagesMap] = useState(() => loadFromStorage(STORAGE_KEYS.MESSAGES, {}))
+  const [messagesMap, setMessagesMap] = useState(() => loadPatientMessages(patientId))
   const [input, setInput] = useState('')
   const [aiThinking, setAiThinking] = useState(false)
   const [streamingMsgId, setStreamingMsgId] = useState(null)
@@ -255,9 +244,57 @@ function ChatPage({ user, onLogout }) {
 
   const messages = currentThreadId ? (messagesMap[currentThreadId] || []) : []
 
+  useEffect(() => {
+    let cancelled = false
+
+    if (!patientId) {
+      setThreads([])
+      setMessagesMap({})
+      setCurrentThreadId(null)
+      return undefined
+    }
+
+    setMessagesMap(loadPatientMessages(patientId))
+    setCurrentThreadId(null)
+
+    async function hydrateThreads() {
+      try {
+        const restoredThreads = await restorePatientThreads(
+          patientId,
+          async () => {
+            const res = await chatApi.getThreads()
+            return res.data.threads || []
+          }
+        )
+        if (!cancelled) {
+          setThreads(restoredThreads)
+        }
+      } catch {
+        if (!cancelled) {
+          setThreads([])
+        }
+      }
+    }
+
+    hydrateThreads()
+
+    return () => {
+      cancelled = true
+    }
+  }, [patientId])
+
   // Persist threads and messages
-  useEffect(() => { saveToStorage(STORAGE_KEYS.THREADS, threads) }, [threads])
-  useEffect(() => { saveToStorage(STORAGE_KEYS.MESSAGES, messagesMap) }, [messagesMap])
+  useEffect(() => {
+    if (patientId) {
+      savePatientThreads(patientId, threads)
+    }
+  }, [patientId, threads])
+
+  useEffect(() => {
+    if (patientId) {
+      savePatientMessages(patientId, messagesMap)
+    }
+  }, [patientId, messagesMap])
 
   const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }
   useEffect(() => { scrollToBottom() }, [messages, aiThinking])
@@ -290,14 +327,26 @@ function ChatPage({ user, onLogout }) {
           text: m.content,
           time: new Date(),
         }))
-        setMessagesMap(prev => ({ ...prev, [threadId]: historyMsgs }))
+        setMessagesMap(prev => {
+          const next = { ...prev, [threadId]: historyMsgs }
+          if (patientId) {
+            savePatientMessages(patientId, next)
+          }
+          return next
+        })
       } catch {
         // silently ignore, use empty messages
       }
     }
-  }, [messagesMap, currentThreadId])
+  }, [messagesMap, currentThreadId, patientId])
 
-  const deleteThread = useCallback((threadId) => {
+  const deleteThread = useCallback(async (threadId) => {
+    try {
+      await chatApi.deleteThread(threadId)
+    } catch (err) {
+      showToast(err.response?.data?.detail || '删除失败，请稍后重试')
+      return
+    }
     setThreads(prev => prev.filter(t => t.id !== threadId))
     setMessagesMap(prev => {
       const next = { ...prev }
@@ -307,7 +356,7 @@ function ChatPage({ user, onLogout }) {
     if (currentThreadId === threadId) {
       setCurrentThreadId(null)
     }
-  }, [currentThreadId])
+  }, [currentThreadId, showToast])
 
   const updateThreadMeta = useCallback((threadId, text) => {
     setThreads(prev => prev.map(t =>
@@ -481,6 +530,53 @@ function ChatPage({ user, onLogout }) {
     }
   }, [input, aiThinking, currentThreadId, createNewThread, updateThreadMeta, showToast])
 
+  const handleSidebarAction = useCallback(async (action, payload) => {
+    if (aiThinking) return
+
+    let threadId = currentThreadId
+    if (!threadId) {
+      threadId = createNewThread()
+    }
+
+    const userText = action === 'confirm_registration'
+      ? `确认挂号：${payload.department_name} · ${payload.doctor_name}`
+      : '执行侧栏操作'
+    const userMsg = { id: Date.now(), role: 'user', text: userText, time: new Date() }
+    const aiMsgId = Date.now() + 1
+    const aiMsg = { id: aiMsgId, role: 'ai', text: '', time: new Date(), streaming: false }
+
+    setMessagesMap(prev => ({
+      ...prev,
+      [threadId]: [...(prev[threadId] || []), userMsg, aiMsg],
+    }))
+    updateThreadMeta(threadId, userText)
+    setAiThinking(true)
+
+    try {
+      const res = await patientApi.sidebarAction(action, threadId, payload)
+      const reply = res.data?.message || '已收到请求，请稍后查看结果。'
+
+      setMessagesMap(prev => ({
+        ...prev,
+        [threadId]: (prev[threadId] || []).map(m =>
+          m.id === aiMsgId ? { ...m, text: reply, streaming: false } : m
+        ),
+      }))
+      updateThreadMeta(threadId, reply)
+    } catch (err) {
+      const errorMessage = err.response?.data?.detail || '侧栏操作失败，请稍后重试'
+      showToast(errorMessage)
+      setMessagesMap(prev => ({
+        ...prev,
+        [threadId]: (prev[threadId] || []).map(m =>
+          m.id === aiMsgId ? { ...m, text: errorMessage, streaming: false } : m
+        ),
+      }))
+    } finally {
+      setAiThinking(false)
+    }
+  }, [aiThinking, currentThreadId, createNewThread, showToast, updateThreadMeta])
+
 
 
   return (
@@ -523,7 +619,7 @@ function ChatPage({ user, onLogout }) {
           hasThread={!!currentThreadId}
           transitionKey={transitionKey}
         />
-        <PatientSidebar user={user} onSendChat={handleSend} />
+        <PatientSidebar user={user} onSidebarAction={handleSidebarAction} />
       </div>
     </div>
   )
