@@ -1,0 +1,1206 @@
+{
+  "benchmark_id": "patient-agent-benchmark-v1",
+  "generated_on": "2026-06-28",
+  "project_root": "Smart-healthcar-system",
+  "scope": {
+    "included": [
+      "认证",
+      "普通聊天",
+      "SSE 流式聊天",
+      "历史线程与本地缓存恢复",
+      "患者档案",
+      "侧栏动作续接对话",
+      "科室/医生/排班/挂号流程",
+      "输入输出安全护栏"
+    ],
+    "excluded": [
+      "院内导航",
+      "候诊进度",
+      "报告查看与下载闭环",
+      "缴费引导",
+      "用药提醒",
+      "复诊提醒",
+      "满意度评价",
+      "运营后台",
+      "规则化症状分诊引擎",
+      "规则化医生推荐引擎"
+    ]
+  },
+  "modules": [
+    {
+      "name": "auth",
+      "description": "短信验证码认证与会话边界"
+    },
+    {
+      "name": "chat_core",
+      "description": "普通聊天接口、患者身份隔离与历史读取"
+    },
+    {
+      "name": "chat_stream",
+      "description": "SSE 事件流和输出可见性约束"
+    },
+    {
+      "name": "thread_cache",
+      "description": "患者线程缓存恢复、删除失败回滚、线程上下文续聊"
+    },
+    {
+      "name": "patient_profile_sidebar",
+      "description": "患者档案、侧栏动作与工作台交互"
+    },
+    {
+      "name": "registration_flow",
+      "description": "排班查询、挂号待确认状态、确认挂号和预路由"
+    },
+    {
+      "name": "guardrails",
+      "description": "输入拦截、应急兜底、免责声明"
+    }
+  ],
+  "cases": [
+    {
+      "id": "AUTH-001",
+      "module": "auth",
+      "priority": "P0",
+      "scenario": "发送短信验证码时，开发模式直接返回 code_dev",
+      "prd_features": [
+        "患者认证入口"
+      ],
+      "preconditions": [
+        "Redis 可写"
+      ],
+      "input": {
+        "channel": "api",
+        "method": "POST",
+        "path": "/api/auth/send-sms",
+        "payload": {
+          "phone": "13800138000"
+        }
+      },
+      "expected": {
+        "status_code": 200,
+        "response_contains": [
+          "msg",
+          "code_dev"
+        ],
+        "response_equals": {
+          "msg": "验证码已发送"
+        }
+      },
+      "forbidden": [
+        "返回空验证码",
+        "不写入 Redis"
+      ],
+      "evidence": {
+        "backend": [
+          "patient_agent_backend/app/api/auth.py"
+        ],
+        "tests": [
+          "patient_agent_backend/tests/test_api/test_auth_api.py"
+        ]
+      }
+    },
+    {
+      "id": "AUTH-002",
+      "module": "auth",
+      "priority": "P0",
+      "scenario": "验证码登录成功后返回 token、真实 patient_id 和 name",
+      "prd_features": [
+        "患者认证入口"
+      ],
+      "preconditions": [
+        "先执行 AUTH-001",
+        "手机号已对应患者档案"
+      ],
+      "input": {
+        "channel": "api",
+        "method": "POST",
+        "path": "/api/auth/login",
+        "payload_from_previous_case": "AUTH-001.code_dev"
+      },
+      "expected": {
+        "status_code": 200,
+        "response_contains": [
+          "token",
+          "patient_id",
+          "name"
+        ],
+        "response_equals": {
+          "patient_id": 12,
+          "name": "张三"
+        }
+      },
+      "forbidden": [
+        "使用前端透传 patient_id 作为最终身份",
+        "登录成功后验证码仍留存在 Redis"
+      ],
+      "evidence": {
+        "backend": [
+          "patient_agent_backend/app/api/auth.py"
+        ],
+        "tests": [
+          "patient_agent_backend/tests/test_api/test_auth_api.py"
+        ]
+      }
+    },
+    {
+      "id": "AUTH-003",
+      "module": "auth",
+      "priority": "P0",
+      "scenario": "验证码过期或错误时登录失败",
+      "prd_features": [
+        "患者认证入口"
+      ],
+      "preconditions": [
+        "未发送验证码或使用过期验证码"
+      ],
+      "input": {
+        "channel": "api",
+        "method": "POST",
+        "path": "/api/auth/login",
+        "payload": {
+          "phone": "13800138000",
+          "code": "000000"
+        }
+      },
+      "expected": {
+        "status_code": 400,
+        "response_detail_one_of": [
+          "验证码已过期，请重新获取",
+          "验证码错误"
+        ]
+      },
+      "forbidden": [
+        "错误验证码仍然登录成功"
+      ],
+      "evidence": {
+        "backend": [
+          "patient_agent_backend/app/api/auth.py"
+        ]
+      }
+    },
+    {
+      "id": "AUTH-004",
+      "module": "auth",
+      "priority": "P0",
+      "scenario": "未携带 Bearer token 时登出失败",
+      "prd_features": [
+        "患者认证入口"
+      ],
+      "preconditions": [],
+      "input": {
+        "channel": "api",
+        "method": "POST",
+        "path": "/api/auth/logout",
+        "headers": {}
+      },
+      "expected": {
+        "status_code": 401
+      },
+      "forbidden": [
+        "匿名登出成功"
+      ],
+      "evidence": {
+        "tests": [
+          "patient_agent_backend/tests/test_api/test_auth_api.py"
+        ]
+      }
+    },
+    {
+      "id": "CHAT-001",
+      "module": "chat_core",
+      "priority": "P0",
+      "scenario": "普通聊天接口必须要求登录",
+      "prd_features": [
+        "就医流程对话入口"
+      ],
+      "preconditions": [],
+      "input": {
+        "channel": "api",
+        "method": "POST",
+        "path": "/api/chat",
+        "payload": {
+          "message": "我要挂号"
+        }
+      },
+      "expected": {
+        "status_code": 401
+      },
+      "forbidden": [
+        "匿名聊天成功"
+      ],
+      "evidence": {
+        "tests": [
+          "patient_agent_backend/tests/test_api/test_chat_auth.py"
+        ]
+      }
+    },
+    {
+      "id": "CHAT-002",
+      "module": "chat_core",
+      "priority": "P0",
+      "scenario": "聊天接口忽略前端透传 patient_id，强制使用登录患者身份",
+      "prd_features": [
+        "患者身份隔离",
+        "就医流程对话入口"
+      ],
+      "preconditions": [
+        "已登录，patient_id=88"
+      ],
+      "input": {
+        "channel": "api",
+        "method": "POST",
+        "path": "/api/chat",
+        "headers": {
+          "Authorization": "Bearer token-1"
+        },
+        "payload": {
+          "message": "你好",
+          "patient_id": 999,
+          "thread_id": "t-1"
+        }
+      },
+      "expected": {
+        "status_code": 200,
+        "server_uses_session_patient_id": 88
+      },
+      "forbidden": [
+        "使用透传 patient_id=999 访问消息历史",
+        "跨患者串会话"
+      ],
+      "evidence": {
+        "tests": [
+          "patient_agent_backend/tests/test_api/test_chat_auth.py"
+        ]
+      }
+    },
+    {
+      "id": "CHAT-003",
+      "module": "chat_core",
+      "priority": "P0",
+      "scenario": "历史消息查询使用登录患者身份，不接受外部 patient_id 注入",
+      "prd_features": [
+        "历史会话查询",
+        "患者身份隔离"
+      ],
+      "preconditions": [
+        "已登录，patient_id=88"
+      ],
+      "input": {
+        "channel": "api",
+        "method": "GET",
+        "path": "/api/chat/history",
+        "headers": {
+          "Authorization": "Bearer token-1"
+        },
+        "params": {
+          "patient_id": 999,
+          "thread_id": "t-2"
+        }
+      },
+      "expected": {
+        "status_code": 200,
+        "server_uses_session_patient_id": 88
+      },
+      "forbidden": [
+        "按 URL 参数切换到其他患者的历史"
+      ],
+      "evidence": {
+        "tests": [
+          "patient_agent_backend/tests/test_api/test_chat_auth.py"
+        ]
+      }
+    },
+    {
+      "id": "CHAT-004",
+      "module": "chat_core",
+      "priority": "P0",
+      "scenario": "会话列表接口只返回当前登录患者的线程",
+      "prd_features": [
+        "历史会话列表",
+        "患者身份隔离"
+      ],
+      "preconditions": [
+        "已登录，patient_id=1"
+      ],
+      "input": {
+        "channel": "api",
+        "method": "GET",
+        "path": "/api/chat/threads",
+        "headers": {
+          "Authorization": "Bearer test-token"
+        }
+      },
+      "expected": {
+        "status_code": 200,
+        "threads_first_item_equals": {
+          "thread_id": "thread-1",
+          "title": "我想挂号心内科"
+        }
+      },
+      "forbidden": [
+        "返回其他患者线程",
+        "未登录仍返回线程列表"
+      ],
+      "evidence": {
+        "tests": [
+          "patient_agent_backend/tests/test_api/test_chat_threads_api.py"
+        ]
+      }
+    },
+    {
+      "id": "CHAT-005",
+      "module": "chat_core",
+      "priority": "P0",
+      "scenario": "删除线程时使用当前登录患者身份",
+      "prd_features": [
+        "历史会话删除",
+        "患者身份隔离"
+      ],
+      "preconditions": [
+        "已登录，patient_id=1"
+      ],
+      "input": {
+        "channel": "api",
+        "method": "DELETE",
+        "path": "/api/chat/threads/thread-1",
+        "headers": {
+          "Authorization": "Bearer test-token"
+        }
+      },
+      "expected": {
+        "status_code": 200,
+        "response_equals": {
+          "ok": true
+        },
+        "delete_target": {
+          "patient_id": 1,
+          "thread_id": "thread-1"
+        }
+      },
+      "forbidden": [
+        "删除其他患者会话",
+        "thread_id 为空仍成功"
+      ],
+      "evidence": {
+        "tests": [
+          "patient_agent_backend/tests/test_api/test_chat_threads_api.py"
+        ]
+      }
+    },
+    {
+      "id": "STREAM-001",
+      "module": "chat_stream",
+      "priority": "P0",
+      "scenario": "SSE 流式聊天返回 message 和 done 事件",
+      "prd_features": [
+        "流式聊天"
+      ],
+      "preconditions": [
+        "已登录"
+      ],
+      "input": {
+        "channel": "api",
+        "method": "POST",
+        "path": "/api/chat/stream",
+        "headers": {
+          "Authorization": "Bearer token-1"
+        },
+        "payload": {
+          "message": "我要挂号",
+          "thread_id": "t-1"
+        }
+      },
+      "expected": {
+        "status_code": 200,
+        "sse_events_contains": [
+          "message",
+          "done"
+        ],
+        "response_text_contains": [
+          "系统暂时无法处理该请求，请稍后再试。"
+        ]
+      },
+      "forbidden": [
+        "没有 done 事件",
+        "thread_id 丢失"
+      ],
+      "evidence": {
+        "backend": [
+          "patient_agent_backend/app/api/chat.py"
+        ],
+        "tests": [
+          "patient_agent_backend/tests/test_api/test_chat_stream_api.py"
+        ]
+      }
+    },
+    {
+      "id": "STREAM-002",
+      "module": "chat_stream",
+      "priority": "P0",
+      "scenario": "SSE 响应不暴露 think trace 或工具内部痕迹",
+      "prd_features": [
+        "流式聊天",
+        "安全可见性控制"
+      ],
+      "preconditions": [
+        "已登录"
+      ],
+      "input": {
+        "channel": "api",
+        "method": "POST",
+        "path": "/api/chat/stream",
+        "headers": {
+          "Authorization": "Bearer token-1"
+        },
+        "payload": {
+          "message": "内科有哪些医生出诊",
+          "thread_id": "t-2"
+        }
+      },
+      "expected": {
+        "status_code": 200,
+        "response_text_not_contains": [
+          "think:",
+          "查询医生列表"
+        ]
+      },
+      "forbidden": [
+        "把内部思维链直接输出给患者",
+        "把工具名原样泄露给患者"
+      ],
+      "evidence": {
+        "tests": [
+          "patient_agent_backend/tests/test_api/test_chat_stream_api.py"
+        ]
+      }
+    },
+    {
+      "id": "THREAD-001",
+      "module": "thread_cache",
+      "priority": "P1",
+      "scenario": "远端线程恢复后写回 patient-scoped 本地缓存",
+      "prd_features": [
+        "历史会话恢复"
+      ],
+      "preconditions": [
+        "localStorage 初始为空"
+      ],
+      "input": {
+        "channel": "frontend-storage",
+        "function": "restorePatientThreads",
+        "patient_id": 1,
+        "remote_threads": [
+          {
+            "thread_id": "thread-1",
+            "title": "我想挂号心内科",
+            "last_message": "已为您找到今日可预约医生。",
+            "updated_at": "2026-06-27T14:00:00"
+          }
+        ]
+      },
+      "expected": {
+        "cache_saved_as": [
+          {
+            "id": "thread-1",
+            "title": "我想挂号心内科",
+            "lastMessage": "已为您找到今日可预约医生。",
+            "time": "2026-06-27T14:00:00"
+          }
+        ]
+      },
+      "forbidden": [
+        "不写回 patient-scoped cache",
+        "字段名不转换"
+      ],
+      "evidence": {
+        "tests": [
+          "patient_agent_frontend/src/storage/patientHistoryRecovery.test.js"
+        ]
+      }
+    },
+    {
+      "id": "THREAD-002",
+      "module": "thread_cache",
+      "priority": "P1",
+      "scenario": "本地已有线程缓存时优先使用本地，不重复拉远端",
+      "prd_features": [
+        "历史会话恢复"
+      ],
+      "preconditions": [
+        "patient-scoped local cache 已存在"
+      ],
+      "input": {
+        "channel": "frontend-storage",
+        "function": "restorePatientThreads",
+        "patient_id": 2
+      },
+      "expected": {
+        "remote_fetch_call_count": 0,
+        "returns_local_cache": true
+      },
+      "forbidden": [
+        "覆盖已有本地缓存",
+        "无意义请求远端线程接口"
+      ],
+      "evidence": {
+        "tests": [
+          "patient_agent_frontend/src/storage/patientHistoryRecovery.test.js"
+        ]
+      }
+    },
+    {
+      "id": "THREAD-003",
+      "module": "thread_cache",
+      "priority": "P1",
+      "scenario": "页面重载后继续在上次选中的 thread 中聊天",
+      "prd_features": [
+        "线程上下文续聊"
+      ],
+      "preconditions": [
+        "本地缓存已有 thread-1",
+        "上次选中的线程为 thread-1"
+      ],
+      "input": {
+        "channel": "frontend-page",
+        "action_sequence": [
+          "首次渲染并点击历史对话一",
+          "卸载页面并重新渲染",
+          "输入“继续刚才的话题”并发送"
+        ]
+      },
+      "expected": {
+        "send_stream_called_with": [
+          "继续刚才的话题",
+          "thread-1"
+        ]
+      },
+      "forbidden": [
+        "重载后误创建新线程",
+        "丢失当前 thread 上下文"
+      ],
+      "evidence": {
+        "tests": [
+          "patient_agent_frontend/src/App.thread-context.test.jsx"
+        ]
+      }
+    },
+    {
+      "id": "THREAD-004",
+      "module": "thread_cache",
+      "priority": "P1",
+      "scenario": "远端删除线程失败时保留本地线程缓存并提示失败",
+      "prd_features": [
+        "历史会话删除",
+        "前端容错"
+      ],
+      "preconditions": [
+        "本地线程和消息缓存已存在",
+        "远端 deleteThread 返回错误"
+      ],
+      "input": {
+        "channel": "frontend-page",
+        "action_sequence": [
+          "渲染 App",
+          "点击删除对话",
+          "确认删除"
+        ]
+      },
+      "expected": {
+        "thread_still_visible": "历史对话一",
+        "ui_message_contains": "删除失败，请稍后重试"
+      },
+      "forbidden": [
+        "远端失败时仍然清空本地线程缓存"
+      ],
+      "evidence": {
+        "tests": [
+          "patient_agent_frontend/src/App.delete-thread.test.jsx"
+        ]
+      }
+    },
+    {
+      "id": "PROFILE-001",
+      "module": "patient_profile_sidebar",
+      "priority": "P1",
+      "scenario": "获取当前登录患者档案",
+      "prd_features": [
+        "患者档案"
+      ],
+      "preconditions": [
+        "已登录，patient_id=12"
+      ],
+      "input": {
+        "channel": "api",
+        "method": "GET",
+        "path": "/api/patient/profile",
+        "headers": {
+          "Authorization": "Bearer token-1"
+        }
+      },
+      "expected": {
+        "status_code": 200,
+        "response_equals": {
+          "id": 12,
+          "name": "张三"
+        }
+      },
+      "forbidden": [
+        "读取其他患者档案"
+      ],
+      "evidence": {
+        "backend": [
+          "patient_agent_backend/app/api/patient.py",
+          "patient_agent_backend/app/patient_profile/models.py"
+        ],
+        "tests": [
+          "patient_agent_backend/tests/test_api/test_patient_profile_api.py"
+        ]
+      }
+    },
+    {
+      "id": "PROFILE-002",
+      "module": "patient_profile_sidebar",
+      "priority": "P1",
+      "scenario": "更新患者档案时不允许修改 tel 等未开放字段",
+      "prd_features": [
+        "患者档案更新"
+      ],
+      "preconditions": [
+        "已登录"
+      ],
+      "input": {
+        "channel": "api",
+        "method": "POST",
+        "path": "/api/patient/profile",
+        "headers": {
+          "Authorization": "Bearer token-1"
+        },
+        "payload": {
+          "name": "李四",
+          "tel": "13900139000"
+        }
+      },
+      "expected": {
+        "status_code": 422
+      },
+      "forbidden": [
+        "允许改手机号",
+        "吞掉非法字段"
+      ],
+      "evidence": {
+        "backend": [
+          "patient_agent_backend/app/patient_profile/models.py"
+        ],
+        "tests": [
+          "patient_agent_backend/tests/test_api/test_patient_profile_api.py"
+        ]
+      }
+    },
+    {
+      "id": "SIDEBAR-001",
+      "module": "patient_profile_sidebar",
+      "priority": "P1",
+      "scenario": "右侧栏确认挂号动作以登录患者身份续接到对话流",
+      "prd_features": [
+        "患者工作台",
+        "挂号确认"
+      ],
+      "preconditions": [
+        "已登录，patient_id=88"
+      ],
+      "input": {
+        "channel": "api",
+        "method": "POST",
+        "path": "/api/patient/sidebar/action",
+        "headers": {
+          "Authorization": "Bearer token-1"
+        },
+        "payload": {
+          "action": "confirm_registration",
+          "thread_id": "thread-9",
+          "payload": {
+            "doctor_id": 12,
+            "department_name": "内科"
+          }
+        }
+      },
+      "expected": {
+        "status_code": 200,
+        "response_thread_id": "thread-9",
+        "server_uses_session_patient_id": 88,
+        "serialized_action_contains": "confirm_registration"
+      },
+      "forbidden": [
+        "侧栏直接绕过聊天上下文",
+        "侧栏动作丢失 thread_id"
+      ],
+      "evidence": {
+        "backend": [
+          "patient_agent_backend/app/api/patient.py",
+          "patient_agent_backend/app/patient_sidebar/actions.py"
+        ],
+        "tests": [
+          "patient_agent_backend/tests/test_api/test_sidebar_action_api.py"
+        ]
+      }
+    },
+    {
+      "id": "REG-001",
+      "module": "registration_flow",
+      "priority": "P0",
+      "scenario": "查询具体排班详情后写入待确认挂号状态",
+      "prd_features": [
+        "医生排班查询",
+        "挂号确认前置状态"
+      ],
+      "preconditions": [
+        "已设置 patient_id=88",
+        "当前 thread_id=thread-1"
+      ],
+      "input": {
+        "channel": "tool",
+        "tool_name": "query_schedule_detail",
+        "args": {
+          "work_plan_id": 11
+        }
+      },
+      "expected": {
+        "tool_result_ok": true,
+        "pending_registration_confirmation_equals": {
+          "work_plan_id": 11,
+          "doctor_schedule_id": 2,
+          "doctor_id": 3,
+          "dept_sub_id": 4,
+          "appointment_date": "2026-06-26",
+          "slot": 1,
+          "doctor_name": "张医生"
+        }
+      },
+      "forbidden": [
+        "只返回排班结果但不记录待确认状态"
+      ],
+      "evidence": {
+        "tests": [
+          "patient_agent_backend/tests/test_tools/test_registration_flow_tools.py",
+          "patient_agent_backend/tests/test_integration/test_chat_registration_flow.py"
+        ]
+      }
+    },
+    {
+      "id": "REG-002",
+      "module": "registration_flow",
+      "priority": "P0",
+      "scenario": "没有待确认挂号状态时，不允许直接创建挂号",
+      "prd_features": [
+        "挂号确认"
+      ],
+      "preconditions": [
+        "当前 flow state 中没有 pending_registration_confirmation"
+      ],
+      "input": {
+        "channel": "tool",
+        "tool_name": "create_registration",
+        "args": {
+          "work_plan_id": 1,
+          "doctor_schedule_id": 2,
+          "doctor_id": 3,
+          "dept_sub_id": 4,
+          "appointment_date": "2026-06-26",
+          "slot": 1
+        }
+      },
+      "expected": {
+        "tool_result_ok": false,
+        "error_contains": "请先确认挂号信息"
+      },
+      "forbidden": [
+        "绕过确认直接创建挂号"
+      ],
+      "evidence": {
+        "tests": [
+          "patient_agent_backend/tests/test_tools/test_registration_flow_state.py"
+        ]
+      }
+    },
+    {
+      "id": "REG-003",
+      "module": "registration_flow",
+      "priority": "P0",
+      "scenario": "确认挂号时允许只传 slot，并从 pending state 回填完整参数",
+      "prd_features": [
+        "挂号确认"
+      ],
+      "preconditions": [
+        "flow state 已写入 pending_registration_confirmation",
+        "patient_id=9",
+        "thread_id=thread-2"
+      ],
+      "input": {
+        "channel": "tool",
+        "tool_name": "create_registration",
+        "args": {
+          "slot": 2
+        }
+      },
+      "expected": {
+        "tool_result_ok": true,
+        "created_request_equals": {
+          "patient_id": 9,
+          "work_plan_id": 11,
+          "doctor_schedule_id": 23,
+          "doctor_id": 33,
+          "dept_sub_id": 44,
+          "appointment_date": "2026-06-28",
+          "slot": 2
+        }
+      },
+      "forbidden": [
+        "需要前端重复传全部挂号参数",
+        "回填 slot 错位"
+      ],
+      "evidence": {
+        "tests": [
+          "patient_agent_backend/tests/test_tools/test_registration_flow_state.py"
+        ]
+      }
+    },
+    {
+      "id": "REG-004",
+      "module": "registration_flow",
+      "priority": "P0",
+      "scenario": "用户说“我的挂号”时走预路由查询挂号记录",
+      "prd_features": [
+        "挂号记录查询"
+      ],
+      "preconditions": [
+        "预路由工具 query_registration 可用"
+      ],
+      "input": {
+        "channel": "pre_router",
+        "user_message": "我的挂号"
+      },
+      "expected": {
+        "reply_type": "pre_route",
+        "message_contains": "共找到 1 条挂号记录"
+      },
+      "forbidden": [
+        "继续走大模型主图而不是预路由"
+      ],
+      "evidence": {
+        "backend": [
+          "patient_agent_backend/app/chat/pre_router.py"
+        ],
+        "tests": [
+          "patient_agent_backend/tests/test_api/test_chat_orchestrator_pre_router.py"
+        ]
+      }
+    },
+    {
+      "id": "REG-005",
+      "module": "registration_flow",
+      "priority": "P0",
+      "scenario": "用户说“取消挂号”时先列出挂号记录并要求选择记录 ID",
+      "prd_features": [
+        "挂号记录查询",
+        "取消挂号引导"
+      ],
+      "preconditions": [
+        "预路由工具 query_registration 可用"
+      ],
+      "input": {
+        "channel": "pre_router",
+        "user_message": "取消挂号"
+      },
+      "expected": {
+        "reply_type": "pre_route",
+        "message_contains": "请告诉我想取消哪一条挂号记录"
+      },
+      "forbidden": [
+        "没有记录列表就直接取消",
+        "无确认提示"
+      ],
+      "evidence": {
+        "backend": [
+          "patient_agent_backend/app/chat/pre_router.py"
+        ],
+        "tests": [
+          "patient_agent_backend/tests/test_api/test_chat_orchestrator_pre_router.py"
+        ]
+      }
+    },
+    {
+      "id": "REG-006",
+      "module": "registration_flow",
+      "priority": "P0",
+      "scenario": "存在待确认状态时，用户说“选第 2 个”会创建对应时段挂号",
+      "prd_features": [
+        "挂号确认"
+      ],
+      "preconditions": [
+        "flow state 存在两个 schedule_options"
+      ],
+      "input": {
+        "channel": "pre_router",
+        "user_message": "选第 2 个"
+      },
+      "expected": {
+        "reply_type": "pre_route",
+        "message_contains": "挂号成功",
+        "create_registration_called_with": {
+          "slot": 2
+        }
+      },
+      "forbidden": [
+        "默认仍选第 1 个",
+        "忽略用户的序号选择"
+      ],
+      "evidence": {
+        "backend": [
+          "patient_agent_backend/app/chat/pre_router.py"
+        ],
+        "tests": [
+          "patient_agent_backend/tests/test_api/test_chat_orchestrator_pre_router.py"
+        ]
+      }
+    },
+    {
+      "id": "REG-007",
+      "module": "registration_flow",
+      "priority": "P0",
+      "scenario": "聊天挂号两阶段流程：先写待确认状态，再在确认后创建挂号并清空 pending state",
+      "prd_features": [
+        "智能挂号/预约"
+      ],
+      "preconditions": [
+        "patient_id=88",
+        "thread_id=flow-2",
+        "RedisFlowStateStore 可用"
+      ],
+      "input": {
+        "channel": "integration",
+        "action_sequence": [
+          "POST /api/chat: 帮我预约张医生今天的号",
+          "POST /api/chat: 确认"
+        ]
+      },
+      "expected": {
+        "first_response_contains": "请确认",
+        "second_response_contains": "挂号成功",
+        "created_request_contains": {
+          "patient_id": 88,
+          "work_plan_id": 11
+        },
+        "pending_registration_confirmation_cleared": true
+      },
+      "forbidden": [
+        "确认后 pending state 仍残留",
+        "挂号使用错误患者身份"
+      ],
+      "evidence": {
+        "tests": [
+          "patient_agent_backend/tests/test_integration/test_chat_registration_flow.py"
+        ]
+      }
+    },
+    {
+      "id": "THREAD-005",
+      "module": "thread_cache",
+      "priority": "P1",
+      "scenario": "侧栏动作返回新的 server thread id 后，后续发送消息继续使用该 thread",
+      "prd_features": [
+        "线程上下文续聊",
+        "侧栏挂号确认"
+      ],
+      "preconditions": [
+        "sidebarAction 返回 thread_id=server-thread-9"
+      ],
+      "input": {
+        "channel": "frontend-page",
+        "action_sequence": [
+          "触发侧栏操作",
+          "输入“继续处理刚才那次挂号”并发送"
+        ]
+      },
+      "expected": {
+        "send_stream_called_with": [
+          "继续处理刚才那次挂号",
+          "server-thread-9"
+        ]
+      },
+      "forbidden": [
+        "侧栏回来的 thread_id 未写回当前上下文",
+        "后续聊天错误续到旧线程"
+      ],
+      "evidence": {
+        "tests": [
+          "patient_agent_frontend/src/App.thread-context.test.jsx"
+        ]
+      }
+    },
+    {
+      "id": "GUARD-001",
+      "module": "guardrails",
+      "priority": "P0",
+      "scenario": "诊断请求必须被拦截",
+      "prd_features": [
+        "敏感词拦截",
+        "边界声明"
+      ],
+      "preconditions": [],
+      "input": {
+        "channel": "guardrail",
+        "function": "check_input",
+        "user_message": "请你帮我判断是不是肺炎"
+      },
+      "expected": {
+        "blocked": true,
+        "reason": "diagnosis_request"
+      },
+      "forbidden": [
+        "给出疾病诊断",
+        "给出治疗建议"
+      ],
+      "evidence": {
+        "backend": [
+          "patient_agent_backend/app/guardrails/input_guard.py"
+        ],
+        "tests": [
+          "patient_agent_backend/tests/test_guardrails/test_input_guard.py"
+        ]
+      }
+    },
+    {
+      "id": "GUARD-002",
+      "module": "guardrails",
+      "priority": "P0",
+      "scenario": "报告解读请求必须被拦截",
+      "prd_features": [
+        "报告查询边界控制"
+      ],
+      "preconditions": [],
+      "input": {
+        "channel": "guardrail",
+        "function": "check_input",
+        "user_message": "帮我看下这个化验单指标高不高"
+      },
+      "expected": {
+        "blocked": true,
+        "reason": "report_interpretation"
+      },
+      "forbidden": [
+        "解释指标是否正常",
+        "建议如何用药"
+      ],
+      "evidence": {
+        "backend": [
+          "patient_agent_backend/app/guardrails/input_guard.py"
+        ]
+      }
+    },
+    {
+      "id": "GUARD-003",
+      "module": "guardrails",
+      "priority": "P0",
+      "scenario": "高危应急关键词触发拦截并建议转人工/急救",
+      "prd_features": [
+        "异常识别与应急处理",
+        "人工兜底"
+      ],
+      "preconditions": [],
+      "input": {
+        "channel": "guardrail",
+        "function": "check_input",
+        "user_message": "我现在胸痛并且呼吸困难"
+      },
+      "expected": {
+        "blocked": true,
+        "needs_handoff": true,
+        "reason": "high_emergency",
+        "response_contains": [
+          "立即拨打120",
+          "转接人工客服"
+        ]
+      },
+      "forbidden": [
+        "仍继续普通挂号引导",
+        "无应急提示"
+      ],
+      "evidence": {
+        "backend": [
+          "patient_agent_backend/app/guardrails/input_guard.py"
+        ]
+      }
+    },
+    {
+      "id": "GUARD-004",
+      "module": "guardrails",
+      "priority": "P0",
+      "scenario": "健康话题被标记为需要免责声明",
+      "prd_features": [
+        "边界声明"
+      ],
+      "preconditions": [],
+      "input": {
+        "channel": "guardrail",
+        "function": "check_input",
+        "user_message": "最近一直咳嗽，想了解应该挂什么科"
+      },
+      "expected": {
+        "blocked": false,
+        "needs_disclaimer": true,
+        "reason": "health_topic"
+      },
+      "forbidden": [
+        "健康话题没有免责声明标记"
+      ],
+      "evidence": {
+        "tests": [
+          "patient_agent_backend/tests/test_guardrails/test_input_guard.py"
+        ]
+      }
+    },
+    {
+      "id": "GUARD-005",
+      "module": "guardrails",
+      "priority": "P0",
+      "scenario": "输出护栏在需要时追加免责声明，且不会重复追加",
+      "prd_features": [
+        "边界声明",
+        "输出安全审查"
+      ],
+      "preconditions": [],
+      "input": {
+        "channel": "guardrail",
+        "function": "check_output",
+        "assistant_message_variants": [
+          {
+            "assistant_message": "建议你先休息。",
+            "needs_disclaimer": true,
+            "disclaimer_shown": false
+          },
+          {
+            "assistant_message": "以上信息请以医院安排为准。",
+            "needs_disclaimer": true,
+            "disclaimer_shown": true
+          }
+        ]
+      },
+      "expected": {
+        "first_variant_contains": "⚠️ 以上信息仅供参考，不能替代医生面诊。如有身体不适，请尽快到院就诊。",
+        "second_variant_equals": "以上信息请以医院安排为准。"
+      },
+      "forbidden": [
+        "免责声明重复叠加",
+        "健康话题没有免责声明"
+      ],
+      "evidence": {
+        "backend": [
+          "patient_agent_backend/app/guardrails/output_guard.py"
+        ],
+        "tests": [
+          "patient_agent_backend/tests/test_guardrails/test_output_guard.py"
+        ]
+      }
+    }
+  ]
+}

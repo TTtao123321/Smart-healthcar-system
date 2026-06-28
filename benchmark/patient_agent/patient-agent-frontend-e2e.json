@@ -1,0 +1,430 @@
+{
+  "benchmark_id": "patient-agent-frontend-e2e-v1",
+  "generated_on": "2026-06-28",
+  "based_on": [
+    "benchmark/patient_agent/patient-agent-benchmark.json",
+    "docs/superpowers/specs/2026-06-28-patient-agent-frontend-e2e-benchmark-design.md"
+  ],
+  "journeys": [
+    {
+      "id": "JOURNEY-001",
+      "name": "登录成功进入聊天页",
+      "pages": ["login_page", "chat_page"],
+      "goal": "验证患者能从登录页成功进入聊天页主界面"
+    },
+    {
+      "id": "JOURNEY-002",
+      "name": "登录页输入校验",
+      "pages": ["login_page"],
+      "goal": "验证非法手机号和空验证码不会触发登录"
+    },
+    {
+      "id": "JOURNEY-003",
+      "name": "历史线程恢复",
+      "pages": ["chat_page.left_panel"],
+      "goal": "验证聊天页能恢复并展示历史线程"
+    },
+    {
+      "id": "JOURNEY-004",
+      "name": "当前线程发送消息并消费 SSE",
+      "pages": ["chat_page.center_panel"],
+      "goal": "验证页面发送消息和消费流式响应的主链路"
+    },
+    {
+      "id": "JOURNEY-005",
+      "name": "页面刷新后原线程续聊",
+      "pages": ["chat_page.left_panel", "chat_page.center_panel"],
+      "goal": "验证 current thread 恢复和续聊"
+    },
+    {
+      "id": "JOURNEY-006",
+      "name": "右侧栏 fallback 展示",
+      "pages": ["chat_page.right_sidebar"],
+      "goal": "验证侧栏请求失败时页面仍可用"
+    },
+    {
+      "id": "JOURNEY-007",
+      "name": "右侧栏确认挂号",
+      "pages": ["chat_page.right_sidebar"],
+      "goal": "验证科室选择、挂号弹窗和结构化侧栏动作"
+    },
+    {
+      "id": "JOURNEY-008",
+      "name": "侧栏动作切换到服务端线程后继续聊天",
+      "pages": ["chat_page.right_sidebar", "chat_page.center_panel"],
+      "goal": "验证 sidebar action 返回新 thread_id 后的续聊"
+    },
+    {
+      "id": "JOURNEY-009",
+      "name": "删除线程成功",
+      "pages": ["thread_management"],
+      "goal": "验证线程删除成功后的 UI 和本地状态收敛"
+    },
+    {
+      "id": "JOURNEY-010",
+      "name": "删除线程失败回滚",
+      "pages": ["thread_management"],
+      "goal": "验证删除失败时本地线程和消息不会被误删"
+    }
+  ],
+  "cases": [
+    {
+      "id": "FE-E2E-001",
+      "journey": "JOURNEY-001",
+      "page": "login_page",
+      "priority": "P0",
+      "related_case_ids": ["AUTH-001", "AUTH-002"],
+      "preconditions": [
+        "页面初始处于未登录状态",
+        "认证接口可用"
+      ],
+      "steps": [
+        "输入合法手机号 13800138000",
+        "点击 获取验证码",
+        "输入返回的验证码",
+        "点击 登录"
+      ],
+      "expected": [
+        "进入聊天页",
+        "显示聊天输入框 占位文案为 描述您的症状或健康问题...",
+        "当前 session 被写入本地缓存"
+      ],
+      "forbidden": [
+        "登录成功后仍停留在登录页",
+        "无 current session 缓存"
+      ],
+      "evidence": {
+        "frontend": [
+          "patient_agent_frontend/src/App.jsx",
+          "patient_agent_frontend/src/storage/patientCache.test.js"
+        ],
+        "tests": [
+          "patient_agent_backend/tests/test_api/test_auth_api.py"
+        ]
+      }
+    },
+    {
+      "id": "FE-E2E-002",
+      "journey": "JOURNEY-002",
+      "page": "login_page",
+      "priority": "P0",
+      "related_case_ids": ["AUTH-003"],
+      "preconditions": [
+        "页面初始处于未登录状态"
+      ],
+      "steps": [
+        "输入非法手机号 123",
+        "点击 登录"
+      ],
+      "expected": [
+        "出现 toast 请输入正确的手机号码",
+        "不触发登录请求"
+      ],
+      "forbidden": [
+        "非法手机号仍允许提交",
+        "无校验提示"
+      ],
+      "evidence": {
+        "frontend": [
+          "patient_agent_frontend/src/App.jsx"
+        ]
+      }
+    },
+    {
+      "id": "FE-E2E-003",
+      "journey": "JOURNEY-002",
+      "page": "login_page",
+      "priority": "P0",
+      "related_case_ids": ["AUTH-003"],
+      "preconditions": [
+        "页面初始处于未登录状态",
+        "已输入合法手机号"
+      ],
+      "steps": [
+        "输入合法手机号 13800138000",
+        "保持验证码为空",
+        "点击 登录"
+      ],
+      "expected": [
+        "出现 toast 请输入验证码",
+        "不触发登录请求"
+      ],
+      "forbidden": [
+        "空验证码仍允许提交",
+        "无校验提示"
+      ],
+      "evidence": {
+        "frontend": [
+          "patient_agent_frontend/src/App.jsx"
+        ]
+      }
+    },
+    {
+      "id": "FE-E2E-004",
+      "journey": "JOURNEY-003",
+      "page": "chat_page.left_panel",
+      "priority": "P0",
+      "related_case_ids": ["THREAD-001", "THREAD-002", "CHAT-004"],
+      "preconditions": [
+        "当前已登录",
+        "本地无线程缓存或需要从远端恢复"
+      ],
+      "steps": [
+        "进入聊天页",
+        "等待 hydrateThreads 执行恢复逻辑",
+        "观察左侧历史线程列表"
+      ],
+      "expected": [
+        "左侧显示恢复出的历史线程",
+        "恢复结果写回 patient-scoped 本地缓存",
+        "如果恢复后不包含 currentThreadId，则清空当前 thread"
+      ],
+      "forbidden": [
+        "历史线程未显示",
+        "恢复成功但不写回本地缓存",
+        "指向不存在的当前线程"
+      ],
+      "evidence": {
+        "frontend": [
+          "patient_agent_frontend/src/App.jsx"
+        ],
+        "tests": [
+          "patient_agent_frontend/src/storage/patientHistoryRecovery.test.js",
+          "patient_agent_backend/tests/test_api/test_chat_threads_api.py"
+        ]
+      }
+    },
+    {
+      "id": "FE-E2E-005",
+      "journey": "JOURNEY-004",
+      "page": "chat_page.center_panel",
+      "priority": "P0",
+      "related_case_ids": ["STREAM-001", "STREAM-002"],
+      "preconditions": [
+        "当前已登录",
+        "存在 currentThreadId 或允许自动创建新线程"
+      ],
+      "steps": [
+        "在输入框中输入 继续刚才的话题",
+        "点击 发送",
+        "等待 SSE 响应完成"
+      ],
+      "expected": [
+        "当前线程追加用户消息和 AI 占位消息",
+        "sendStream 使用当前 thread_id",
+        "SSE 返回后 AI 回复写入当前线程"
+      ],
+      "forbidden": [
+        "发送后消息不追加",
+        "使用错误 thread_id",
+        "流式完成后 AI 消息为空"
+      ],
+      "evidence": {
+        "frontend": [
+          "patient_agent_frontend/src/App.jsx"
+        ],
+        "tests": [
+          "patient_agent_frontend/src/App.thread-context.test.jsx",
+          "patient_agent_backend/tests/test_api/test_chat_stream_api.py"
+        ]
+      }
+    },
+    {
+      "id": "FE-E2E-006",
+      "journey": "JOURNEY-005",
+      "page": "chat_page.left_panel",
+      "priority": "P0",
+      "related_case_ids": ["THREAD-003"],
+      "preconditions": [
+        "patient 维度线程缓存中已保存 thread-1",
+        "current thread 已记录为 thread-1"
+      ],
+      "steps": [
+        "首次进入页面并选中 历史对话一",
+        "模拟页面刷新或组件重新挂载",
+        "输入 继续刚才的话题",
+        "点击 发送"
+      ],
+      "expected": [
+        "页面刷新后仍在 thread-1 上下文中",
+        "sendStream 使用 thread-1"
+      ],
+      "forbidden": [
+        "刷新后丢失当前线程",
+        "刷新后自动创建新线程"
+      ],
+      "evidence": {
+        "frontend": [
+          "patient_agent_frontend/src/App.jsx"
+        ],
+        "tests": [
+          "patient_agent_frontend/src/App.thread-context.test.jsx"
+        ]
+      }
+    },
+    {
+      "id": "FE-E2E-007",
+      "journey": "JOURNEY-006",
+      "page": "chat_page.right_sidebar",
+      "priority": "P1",
+      "related_case_ids": ["PROFILE-001"],
+      "preconditions": [
+        "当前已登录",
+        "patientApi.getSidebar 返回失败"
+      ],
+      "steps": [
+        "进入聊天页",
+        "模拟右侧栏接口失败",
+        "观察右侧栏内容"
+      ],
+      "expected": [
+        "仍展示 fallback 档案与排班数据",
+        "聊天页主体不崩溃"
+      ],
+      "forbidden": [
+        "右侧栏空白且无任何展示",
+        "侧栏失败导致整个聊天页不可用"
+      ],
+      "evidence": {
+        "frontend": [
+          "patient_agent_frontend/src/components/sidebar/PatientSidebar.jsx"
+        ]
+      }
+    },
+    {
+      "id": "FE-E2E-008",
+      "journey": "JOURNEY-007",
+      "page": "chat_page.right_sidebar",
+      "priority": "P0",
+      "related_case_ids": ["SIDEBAR-001", "REG-001"],
+      "preconditions": [
+        "当前已登录",
+        "右侧栏包含至少一个可预约科室和医生"
+      ],
+      "steps": [
+        "选择有医生数据的科室",
+        "点击 预约挂号",
+        "在确认弹窗中点击 确认挂号"
+      ],
+      "expected": [
+        "弹出 确认挂号信息 模态框",
+        "提交结构化侧栏动作 confirm_registration",
+        "动作参数包含 department_name doctor_id doctor_name"
+      ],
+      "forbidden": [
+        "点击预约挂号没有弹窗",
+        "确认后没有结构化动作提交",
+        "动作参数缺少医生或科室信息"
+      ],
+      "evidence": {
+        "frontend": [
+          "patient_agent_frontend/src/components/sidebar/PatientSidebar.jsx"
+        ],
+        "tests": [
+          "patient_agent_frontend/src/components/sidebar/sidebar-workbench.test.jsx",
+          "patient_agent_backend/tests/test_api/test_sidebar_action_api.py"
+        ]
+      }
+    },
+    {
+      "id": "FE-E2E-009",
+      "journey": "JOURNEY-008",
+      "page": "chat_page.right_sidebar",
+      "priority": "P0",
+      "related_case_ids": ["THREAD-005", "SIDEBAR-001"],
+      "preconditions": [
+        "当前已登录",
+        "侧栏动作返回新的服务端线程 server-thread-9"
+      ],
+      "steps": [
+        "触发侧栏确认挂号动作",
+        "让 sidebarAction 返回 thread_id=server-thread-9",
+        "输入 继续处理刚才那次挂号",
+        "点击 发送"
+      ],
+      "expected": [
+        "当前线程切换到 server-thread-9",
+        "后续 sendStream 使用 server-thread-9"
+      ],
+      "forbidden": [
+        "侧栏返回的新线程未写入当前上下文",
+        "后续消息仍发往旧线程"
+      ],
+      "evidence": {
+        "frontend": [
+          "patient_agent_frontend/src/App.jsx"
+        ],
+        "tests": [
+          "patient_agent_frontend/src/App.thread-context.test.jsx"
+        ]
+      }
+    },
+    {
+      "id": "FE-E2E-010",
+      "journey": "JOURNEY-009",
+      "page": "thread_management",
+      "priority": "P1",
+      "related_case_ids": ["CHAT-005"],
+      "preconditions": [
+        "当前已登录",
+        "存在待删除线程",
+        "chatApi.deleteThread 调用成功"
+      ],
+      "steps": [
+        "点击线程删除按钮",
+        "确认删除"
+      ],
+      "expected": [
+        "线程从列表中移除",
+        "线程对应消息从本地状态中删除",
+        "如果删除的是当前线程，则 currentThreadId 被清空"
+      ],
+      "forbidden": [
+        "服务端删除成功但 UI 保留旧线程",
+        "删除当前线程后仍指向旧线程"
+      ],
+      "evidence": {
+        "frontend": [
+          "patient_agent_frontend/src/App.jsx"
+        ],
+        "tests": [
+          "patient_agent_backend/tests/test_api/test_chat_threads_api.py"
+        ]
+      }
+    },
+    {
+      "id": "FE-E2E-011",
+      "journey": "JOURNEY-010",
+      "page": "thread_management",
+      "priority": "P0",
+      "related_case_ids": ["THREAD-004"],
+      "preconditions": [
+        "当前已登录",
+        "左侧存在历史线程",
+        "chatApi.deleteThread 返回错误"
+      ],
+      "steps": [
+        "点击删除线程",
+        "确认删除",
+        "让 deleteThread 请求失败"
+      ],
+      "expected": [
+        "线程仍保留在列表中",
+        "页面提示 删除失败，请稍后重试",
+        "本地消息缓存不被提前删除"
+      ],
+      "forbidden": [
+        "删除失败时线程仍被本地移除",
+        "没有错误提示"
+      ],
+      "evidence": {
+        "frontend": [
+          "patient_agent_frontend/src/App.jsx"
+        ],
+        "tests": [
+          "patient_agent_frontend/src/App.delete-thread.test.jsx"
+        ]
+      }
+    }
+  ]
+}
