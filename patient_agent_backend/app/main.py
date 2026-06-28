@@ -14,9 +14,11 @@ from app.auth.service import AuthService
 from app.api import auth as auth_module
 from app.api.auth import router as auth_router
 from app.api.chat import router as chat_router, set_memory
+from app.api.e2e import router as e2e_router
 from app.api.patient import router as patient_router
 from app.chat.flow_state import RedisFlowStateStore, set_flow_state_store
 from app.config.settings import settings
+from app.e2e.service import get_e2e_service
 from app.hms_client import HmsClient
 from app.memory.redis_memory import RedisMemory
 from app.middleware.request_context import RequestContextMiddleware
@@ -101,9 +103,13 @@ async def lifespan(app: FastAPI):
     # 初始化认证模块 Redis
     auth_module.set_redis(redis_client)
     auth_module.set_patient_profile_service_getter(lambda: app.state.patient_profile_service)
-    auth_module.set_auth_service_getter(lambda: app.state.auth_service)
+    auth_module.set_auth_service_getter(
+        lambda: get_e2e_service() if settings.patient_agent_e2e_mode else app.state.auth_service
+    )
     auth_module.set_patient_sidebar_service_getter(lambda: app.state.patient_sidebar_service)
-    set_auth_dependency_getter(lambda: app.state.auth_service)
+    set_auth_dependency_getter(
+        lambda: get_e2e_service() if settings.patient_agent_e2e_mode else app.state.auth_service
+    )
     logger.info("认证模块初始化完成")
 
     logger.info("patient_agent_backend 启动完成")
@@ -142,6 +148,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(chat_router)
 app.include_router(patient_router)
+app.include_router(e2e_router)
 
 
 @app.get("/health")

@@ -8,6 +8,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.auth.dependencies import require_patient_session
 from app.auth.models import PatientSession
 from app.auth.service import AuthService
+from app.config.settings import settings
+from app.e2e.service import get_e2e_service
 from app.hms_client.models import (
     PatientLoginRequest,
     PatientLoginResponse,
@@ -76,6 +78,12 @@ def get_patient_sidebar_service() -> PatientSidebarService:
 @router.post("/send-sms", response_model=SmsCodeResponse)
 async def send_sms_code(request: SmsCodeRequest):
     """发送短信验证码（开发模式直接返回验证码）"""
+    if settings.patient_agent_e2e_mode:
+        return SmsCodeResponse(
+            msg="验证码已发送",
+            code_dev=get_e2e_service().get_sms_code(request.phone),
+        )
+
     import random
 
     r = _get_redis()
@@ -93,6 +101,20 @@ async def send_sms_code(request: SmsCodeRequest):
 @router.post("/login", response_model=PatientLoginResponse)
 async def login(request: PatientLoginRequest):
     """患者登录（验证码登录）"""
+    if settings.patient_agent_e2e_mode:
+        if request.code != settings.patient_agent_e2e_code:
+            raise HTTPException(status_code=400, detail="验证码错误")
+        session = await get_e2e_service().create_session(
+            phone=request.phone,
+            name=settings.patient_agent_e2e_patient_name,
+            patient_id=settings.patient_agent_e2e_patient_id,
+        )
+        return PatientLoginResponse(
+            token=session.token,
+            patient_id=session.patient_id,
+            name=session.name,
+        )
+
     r = _get_redis()
     key = f"{_SMS_PREFIX}{request.phone}"
 

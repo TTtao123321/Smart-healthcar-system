@@ -10,6 +10,8 @@ from app.agent.graph import compile_graph
 from app.auth.dependencies import require_patient_session
 from app.auth.models import PatientSession
 from app.chat.orchestrator import ChatOrchestrator
+from app.config.settings import settings
+from app.e2e.service import get_e2e_service
 from app.memory.redis_memory import RedisMemory
 
 router = APIRouter(prefix="/api/chat", tags=["聊天"])
@@ -48,6 +50,21 @@ async def chat(request: Request, session: PatientSession = Depends(require_patie
     if not user_message.strip():
         raise HTTPException(status_code=400, detail="消息不能为空")
 
+    if settings.patient_agent_e2e_mode:
+        events = get_e2e_service().build_stream_events(
+            patient_id=session.patient_id,
+            user_message=user_message,
+            thread_id=thread_id,
+        )
+        message = events[0]["data"]["content"] if events else "已收到您的消息。"
+        return {
+            "message": message,
+            "thread_id": thread_id,
+            "needs_handoff": False,
+            "reply_type": "assistant",
+            "degraded": False,
+        }
+
     result = await get_orchestrator().run_once(
         session=session,
         user_message=user_message,
@@ -72,6 +89,20 @@ async def chat_stream(request: Request, session: PatientSession = Depends(requir
 
     if not user_message.strip():
         raise HTTPException(status_code=400, detail="消息不能为空")
+
+    if settings.patient_agent_e2e_mode:
+        async def event_generator():
+            for event in get_e2e_service().build_stream_events(
+                patient_id=session.patient_id,
+                user_message=user_message,
+                thread_id=thread_id,
+            ):
+                yield {
+                    "event": event["event"],
+                    "data": json.dumps(event["data"], ensure_ascii=False),
+                }
+
+        return EventSourceResponse(event_generator())
 
     async def event_generator():
         async for event in get_orchestrator().run_stream(
@@ -98,6 +129,10 @@ async def chat_history(
     if not thread_id:
         return {"messages": []}
 
+    if settings.patient_agent_e2e_mode:
+        messages = get_e2e_service().get_history(session.patient_id, thread_id)
+        return {"messages": messages, "thread_id": thread_id}
+
     memory = get_memory()
     messages = await memory.load_messages(session.patient_id, thread_id)
     return {"messages": messages, "thread_id": thread_id}
@@ -108,6 +143,9 @@ async def chat_threads(
     session: PatientSession = Depends(require_patient_session),
 ):
     """获取当前患者的历史会话列表"""
+    if settings.patient_agent_e2e_mode:
+        return {"threads": get_e2e_service().list_threads(session.patient_id)}
+
     memory = get_memory()
     threads = await memory.list_threads(session.patient_id)
     return {"threads": threads}
@@ -121,6 +159,10 @@ async def delete_chat_thread(
     """删除当前患者的历史会话"""
     if not thread_id:
         raise HTTPException(status_code=400, detail="thread_id 不能为空")
+
+    if settings.patient_agent_e2e_mode:
+        get_e2e_service().delete_thread(session.patient_id, thread_id)
+        return {"ok": True}
 
     memory = get_memory()
     await memory.delete_thread(session.patient_id, thread_id)
