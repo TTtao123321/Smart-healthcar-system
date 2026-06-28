@@ -40,6 +40,13 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/1"
     flow_state_ttl_seconds: int = 60 * 60 * 24
 
+    # patient_agent 页面级 E2E
+    patient_agent_e2e_mode: bool = False
+    patient_agent_e2e_phone: str = "13800138000"
+    patient_agent_e2e_code: str = "123456"
+    patient_agent_e2e_patient_id: int = 12
+    patient_agent_e2e_patient_name: str = "张三"
+
     # 对话记忆
     max_conversation_turns: int = 20
 
