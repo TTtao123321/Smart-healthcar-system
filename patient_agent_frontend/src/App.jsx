@@ -2,13 +2,16 @@ import { useState, useEffect, useCallback, createContext, useContext, useRef } f
 import { authApi, chatApi, patientApi } from './api/index.js'
 import PatientSidebar from './components/sidebar/PatientSidebar.jsx'
 import {
+  clearPatientCurrentThreadId,
   clearCurrentSessionCache,
   loadCurrentUser,
+  loadPatientCurrentThreadId,
   loadPatientMessages,
   loadPatientThreads,
   purgeLegacyCacheKeys,
   replaceCurrentSession,
   restorePatientThreads,
+  savePatientCurrentThreadId,
   savePatientMessages,
   savePatientThreads,
 } from './storage/patientCache.js'
@@ -233,7 +236,7 @@ function ChatPage({ user, onLogout }) {
   const showToast = useToast()
   const patientId = user?.patient_id ?? null
   const [threads, setThreads] = useState(() => loadPatientThreads(patientId))
-  const [currentThreadId, setCurrentThreadId] = useState(null)
+  const [currentThreadId, setCurrentThreadId] = useState(() => loadPatientCurrentThreadId(patientId))
   const [messagesMap, setMessagesMap] = useState(() => loadPatientMessages(patientId))
   const [input, setInput] = useState('')
   const [aiThinking, setAiThinking] = useState(false)
@@ -255,7 +258,8 @@ function ChatPage({ user, onLogout }) {
     }
 
     setMessagesMap(loadPatientMessages(patientId))
-    setCurrentThreadId(null)
+    const restoredCurrentThreadId = loadPatientCurrentThreadId(patientId)
+    setCurrentThreadId(restoredCurrentThreadId)
 
     async function hydrateThreads() {
       try {
@@ -268,10 +272,19 @@ function ChatPage({ user, onLogout }) {
         )
         if (!cancelled) {
           setThreads(restoredThreads)
+          if (
+            restoredCurrentThreadId
+            && !restoredThreads.some(thread => thread.id === restoredCurrentThreadId)
+          ) {
+            setCurrentThreadId(null)
+            clearPatientCurrentThreadId(patientId)
+          }
         }
       } catch {
         if (!cancelled) {
           setThreads([])
+          setCurrentThreadId(null)
+          clearPatientCurrentThreadId(patientId)
         }
       }
     }
@@ -295,6 +308,15 @@ function ChatPage({ user, onLogout }) {
       savePatientMessages(patientId, messagesMap)
     }
   }, [patientId, messagesMap])
+
+  useEffect(() => {
+    if (!patientId) return
+    if (currentThreadId) {
+      savePatientCurrentThreadId(patientId, currentThreadId)
+      return
+    }
+    clearPatientCurrentThreadId(patientId)
+  }, [patientId, currentThreadId])
 
   const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }
   useEffect(() => { scrollToBottom() }, [messages, aiThinking])
@@ -554,6 +576,20 @@ function ChatPage({ user, onLogout }) {
 
     try {
       const res = await patientApi.sidebarAction(action, threadId, payload)
+      if (res.data?.thread_id && res.data.thread_id !== threadId) {
+        const nextThreadId = res.data.thread_id
+        setCurrentThreadId(nextThreadId)
+        setMessagesMap(prev => {
+          const msgs = prev[threadId] || []
+          const withoutOld = { ...prev }
+          delete withoutOld[threadId]
+          return { ...withoutOld, [nextThreadId]: msgs }
+        })
+        setThreads(prev => prev.map(t =>
+          t.id === threadId ? { ...t, id: nextThreadId } : t
+        ))
+        threadId = nextThreadId
+      }
       const reply = res.data?.message || '已收到请求，请稍后查看结果。'
 
       setMessagesMap(prev => ({

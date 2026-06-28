@@ -12,6 +12,7 @@ const PREFIXES = {
   user: 'patient_user',
   threads: 'patient_threads',
   messages: 'patient_messages',
+  currentThread: 'patient_current_thread',
 }
 
 function now() {
@@ -75,6 +76,7 @@ export function clearPatientScopedCache(patientId) {
   removeKey(patientScopedKey('user', patientId))
   removeKey(patientScopedKey('threads', patientId))
   removeKey(patientScopedKey('messages', patientId))
+  removeKey(patientScopedKey('currentThread', patientId))
 }
 
 export function loadCurrentUser() {
@@ -140,6 +142,21 @@ export function loadPatientMessages(patientId) {
 export function savePatientMessages(patientId, messages) {
   if (!patientId) return
   writeCache(patientScopedKey('messages', patientId), messages, patientId)
+}
+
+export function loadPatientCurrentThreadId(patientId) {
+  if (!patientId) return null
+  return readCache(patientScopedKey('currentThread', patientId), patientId, null)
+}
+
+export function savePatientCurrentThreadId(patientId, threadId) {
+  if (!patientId || !threadId) return
+  writeCache(patientScopedKey('currentThread', patientId), threadId, patientId)
+}
+
+export function clearPatientCurrentThreadId(patientId) {
+  if (!patientId) return
+  removeKey(patientScopedKey('currentThread', patientId))
 }
 
 export function clearCurrentSessionCache() {
