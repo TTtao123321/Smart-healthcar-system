@@ -24,12 +24,21 @@ BASELINE_SIDEBAR = {
     },
     "recentVisits": [],
     "schedule": {
-        "dateLabel": "2026-06-28",
+        "dateLabel": "2026年6月28日 周日",
         "departments": [
             {
+                "departmentId": "dept-cardiology",
                 "departmentName": "心内科",
                 "doctors": [
-                    {"doctorId": 3, "doctorName": "张医生", "workPlanId": 11},
+                    {
+                        "doctorId": "doctor-003",
+                        "doctorName": "张医生",
+                        "title": "主任医师",
+                        "bio": "擅长心血管疾病诊疗与慢病管理",
+                        "departmentName": "心内科",
+                        "timeSlots": ["08:00-12:00", "14:00-17:00"],
+                        "workPlanId": 11,
+                    },
                 ],
             }
         ],

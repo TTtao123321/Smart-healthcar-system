@@ -21,7 +21,7 @@ cleanup() {
 
 trap cleanup EXIT
 
-"$DOCKER_BIN" compose "${COMPOSE_ARGS[@]}" up -d patient_agent_backend patient_agent_frontend
+"$DOCKER_BIN" compose "${COMPOSE_ARGS[@]}" up -d --build patient_agent_backend patient_agent_frontend
 until curl -fsS http://127.0.0.1:8001/health >/dev/null; do sleep 2; done
 until curl -fsS http://127.0.0.1:5174 >/dev/null; do sleep 2; done
 
