@@ -6,6 +6,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 
 from app.agent.request_context import set_patient_session, set_thread_id
 from app.agent.state import AgentState
+from app.chat.pre_router import try_pre_route
 from app.logging_utils import get_request_logger, log_chat_result
 from app.chat.models import ChatRunResult, ChatStreamEvent
 from app.chat.output_filters import sanitize_visible_message
@@ -69,6 +70,27 @@ class ChatOrchestrator:
         set_patient_session(session)
         set_thread_id(thread_id)
         history = await self._load_history(session.patient_id, thread_id)
+        pre_routed = await try_pre_route(
+            session=session,
+            thread_id=thread_id,
+            user_message=user_message,
+        )
+        if pre_routed is not None:
+            await self._save_history(
+                patient_id=session.patient_id,
+                thread_id=thread_id,
+                history=history,
+                user_message=user_message,
+                assistant_message=pre_routed.message,
+            )
+            log_chat_result(
+                logger,
+                guardrail_result=None,
+                reply_type=pre_routed.reply_type,
+                degraded=pre_routed.degraded,
+            )
+            return pre_routed
+
         state: AgentState = self._build_state(history, user_message, session.patient_id)
 
         result = await self._graph_factory().ainvoke(state)
@@ -122,6 +144,32 @@ class ChatOrchestrator:
         set_patient_session(session)
         set_thread_id(thread_id)
         history = await self._load_history(session.patient_id, thread_id)
+        pre_routed = await try_pre_route(
+            session=session,
+            thread_id=thread_id,
+            user_message=user_message,
+        )
+        if pre_routed is not None:
+            await self._save_history(
+                patient_id=session.patient_id,
+                thread_id=thread_id,
+                history=history,
+                user_message=user_message,
+                assistant_message=pre_routed.message,
+            )
+            log_chat_result(
+                logger,
+                guardrail_result=None,
+                reply_type=pre_routed.reply_type,
+                degraded=pre_routed.degraded,
+            )
+            yield ChatStreamEvent(
+                event="message",
+                data={"content": pre_routed.message, "thread_id": thread_id},
+            )
+            yield ChatStreamEvent(event="done", data={"thread_id": thread_id})
+            return
+
         state: AgentState = self._build_state(history, user_message, session.patient_id)
         graph = self._graph_factory()
 
@@ -131,6 +179,7 @@ class ChatOrchestrator:
             think_buffer = ""
             tool_started = False
             pending_pre_tool_message = ""
+            final_result = None
 
             async for event in graph.astream_events(state, version="v2"):
                 kind = event.get("event", "")
@@ -150,24 +199,14 @@ class ChatOrchestrator:
                                         if not tool_started:
                                             pending_pre_tool_message += emit
                                         else:
-                                            clean_emit = sanitize_visible_message(emit)
-                                            visible_response += clean_emit
-                                            yield ChatStreamEvent(
-                                                event="message",
-                                                data={"content": clean_emit, "thread_id": thread_id},
-                                            )
+                                            visible_response += emit
                                     break
                                 if idx > 0:
                                     emit = think_buffer[:idx]
                                     if not tool_started:
                                         pending_pre_tool_message += emit
                                     else:
-                                        clean_emit = sanitize_visible_message(emit)
-                                        visible_response += clean_emit
-                                        yield ChatStreamEvent(
-                                            event="message",
-                                            data={"content": clean_emit, "thread_id": thread_id},
-                                        )
+                                        visible_response += emit
                                 think_buffer = think_buffer[idx + len("<think>"):]
                                 think_state = "inside"
                             else:
@@ -244,18 +283,17 @@ class ChatOrchestrator:
                             "tool_error": str(err) if err is not None else "工具调用失败",
                         },
                     )
+                elif kind == "on_chain_end":
+                    output = event.get("data", {}).get("output")
+                    if isinstance(output, dict) and output.get("messages"):
+                        final_result = output
 
             if think_buffer:
                 if think_state == "outside":
                     if not tool_started:
                         pending_pre_tool_message += think_buffer
                     else:
-                        clean_emit = sanitize_visible_message(think_buffer)
-                        visible_response += clean_emit
-                        yield ChatStreamEvent(
-                            event="message",
-                            data={"content": clean_emit, "thread_id": thread_id},
-                        )
+                        visible_response += think_buffer
                 else:
                     yield ChatStreamEvent(
                         event="thinking",
@@ -270,7 +308,16 @@ class ChatOrchestrator:
                     data={"content": clean_emit, "thread_id": thread_id},
                 )
 
-            final_message = sanitize_visible_message(visible_response.strip())
+            final_message = (
+                self._extract_reply(final_result)
+                if final_result is not None
+                else sanitize_visible_message(visible_response.strip())
+            )
+            if tool_started and final_message:
+                yield ChatStreamEvent(
+                    event="message",
+                    data={"content": final_message, "thread_id": thread_id},
+                )
             await self._save_history(
                 patient_id=session.patient_id,
                 thread_id=thread_id,

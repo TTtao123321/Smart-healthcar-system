@@ -1,12 +1,11 @@
 """LangGraph 图节点实现"""
 
 import logging
-import re
-from typing import Any
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
+from app.agent.tool_runtime import recover_tool_call, run_tool_rounds
 from app.logging_utils import get_request_logger
 from app.agent.prompts import HANDOFF_MESSAGE, SYSTEM_PROMPT
 from app.agent.state import AgentState
@@ -46,31 +45,6 @@ def reset_llm() -> None:
     global _llm, _llm_with_tools
     _llm = None
     _llm_with_tools = None
-
-
-def recover_tool_call(user_content: str) -> dict[str, Any] | None:
-    """在模型返回空工具名时，按现有关键词规则回退到稳定工具调用。"""
-    text = (user_content or "").strip()
-    if not text:
-        return None
-
-    if any(keyword in text for keyword in ("有哪些科室", "科室列表")):
-        return {"name": "query_departments", "args": {}}
-
-    if any(keyword in text for keyword in ("我的挂号", "我挂的号", "挂号记录", "看看我挂的")):
-        return {"name": "query_registration", "args": {}}
-
-    if any(keyword in text for keyword in ("哪些医生", "找医生", "出诊")):
-        dept_match = re.search(r"([\u4e00-\u9fa5]{1,12}科)", text)
-        if dept_match:
-            return {
-                "name": "query_doctors",
-                "args": {"dept_name": dept_match.group(1)},
-            }
-        return {"name": "query_doctors", "args": {}}
-
-    return None
-
 
 def guard_in(state: AgentState) -> dict:
     """输入安全护栏节点"""
@@ -123,113 +97,13 @@ async def agent(state: AgentState, tools: list) -> dict:
             last_user_content = str(message.content)
             break
 
-    tool_rounds = 0
-    max_tool_rounds = 5
-
-    # 如果 LLM 调用了工具，执行工具并将结果作为上下文再次调用 LLM
-    while isinstance(response, AIMessage) and response.tool_calls:
-        tool_rounds += 1
-        if tool_rounds > max_tool_rounds:
-            logger.error("工具调用轮次超过上限: %s", max_tool_rounds)
-            return {
-                "messages": [AIMessage(content="系统暂时无法处理该请求，请稍后再试。")]
-            }
-
-        # 构建工具名称到函数的映射
-        tool_map = {t.name: t for t in tools}
-        normalized_tool_calls = []
-
-        for tool_call in response.tool_calls:
-            if tool_call.get("name"):
-                normalized_tool_calls.append(tool_call)
-                continue
-
-            recovered = recover_tool_call(last_user_content)
-            if recovered:
-                fixed_tool_call = {**tool_call, **recovered}
-                logger.warning(f"空工具名已按关键词规则回退: {fixed_tool_call}")
-                normalized_tool_calls.append(fixed_tool_call)
-            else:
-                logger.warning(f"忽略空工具名的 tool_call: {tool_call}")
-
-        if not normalized_tool_calls:
-            return {
-                "messages": [AIMessage(content="系统暂时无法处理该请求，请稍后再试。")]
-            }
-
-        # 执行工具调用
-        for tool_call in normalized_tool_calls:
-            tool_name = tool_call["name"]
-            tool_args = tool_call["args"]
-            if tool_name in tool_map:
-                try:
-                    logger.info(
-                        "tool_call_start",
-                        extra={"tool_name": tool_name, "tool_status": "start"},
-                    )
-                    tool_result = await tool_map[tool_name].ainvoke(tool_args)
-                    tool_result_str = str(tool_result)
-                    # 工具现在统一返回 JSON {ok, summary/error, data, hint}，
-                    # 工具内部已捕获所有异常，这里仅识别 ok=false 用于后续提示
-                    import json as _json
-                    try:
-                        parsed = _json.loads(tool_result_str)
-                        if isinstance(parsed, dict) and parsed.get("ok") is False:
-                            has_empty_result = True
-                        elif isinstance(parsed, dict) and parsed.get("data") in ([], None, {}):
-                            has_empty_result = True
-                    except (_json.JSONDecodeError, TypeError):
-                        # 兼容旧格式
-                        if not tool_result_str or tool_result_str in ("[]", "{}", '""', "null", "None"):
-                            has_empty_result = True
-                            tool_result_str = "查询结果为空，数据库中暂无相关数据"
-
-                    llm_messages.append(
-                        AIMessage(
-                            content="",
-                            tool_calls=[tool_call],
-                        )
-                    )
-                    llm_messages.append(
-                        HumanMessage(
-                            content=f"工具 {tool_name} 返回结果：\n{tool_result_str}"
-                        )
-                    )
-                    logger.info(
-                        "tool_call_end",
-                        extra={"tool_name": tool_name, "tool_status": "success"},
-                    )
-                except Exception as e:
-                    logger.error(f"工具 {tool_name} 执行失败: {e}")
-                    logger.error(
-                        "tool_call_end",
-                        extra={"tool_name": tool_name, "tool_status": "error"},
-                    )
-                    llm_messages.append(
-                        HumanMessage(
-                            content=f"工具 {tool_name} 执行失败：{str(e)}。请告知用户系统暂时无法查询该信息，不要编造任何数据。"
-                        )
-                    )
-            else:
-                llm_messages.append(
-                    HumanMessage(
-                        content=f"未知工具：{tool_name}，请告知用户暂时无法处理该请求。"
-                    )
-                )
-
-        # 添加数据真实性提醒，让模型决定是否继续调用下一个工具或直接回复
-        llm_messages.append(HumanMessage(
-            content=(
-                "【重要提醒】请基于以上工具返回的真实数据继续处理用户请求。"
-                "如果当前信息仍不足以完成用户目标，请继续调用下一个必要工具；"
-                "如果信息已经足够，请直接生成最终回复。"
-                "若工具返回结果为空或查询失败，你必须如实告知用户'暂时无法获取该信息，请稍后再试'。"
-                "严禁编造任何科室名称、医生姓名、职称、地址等医院信息。"
-            )
-        ))
-
-        # 继续调用带工具的 LLM，直到不再需要工具
-        response = await llm.ainvoke(llm_messages)
+    response = await run_tool_rounds(
+        llm=llm,
+        llm_messages=llm_messages,
+        response=response,
+        tools=tools,
+        last_user_content=last_user_content,
+    )
 
     return {"messages": [response]}
 

@@ -15,6 +15,7 @@ from app.api import auth as auth_module
 from app.api.auth import router as auth_router
 from app.api.chat import router as chat_router, set_memory
 from app.api.patient import router as patient_router
+from app.chat.flow_state import RedisFlowStateStore, set_flow_state_store
 from app.config.settings import settings
 from app.hms_client import HmsClient
 from app.memory.redis_memory import RedisMemory
@@ -26,6 +27,14 @@ from app.patient_sidebar.service import PatientSidebarService
 from app.tools import init_tools
 
 logger = logging.getLogger(__name__)
+
+
+def create_flow_state_store(redis_client) -> RedisFlowStateStore:
+    """Create the default thread-scoped flow-state store."""
+    return RedisFlowStateStore(
+        redis_client,
+        ttl_seconds=settings.flow_state_ttl_seconds,
+    )
 
 
 @asynccontextmanager
@@ -53,6 +62,8 @@ async def lifespan(app: FastAPI):
     # 初始化 Redis
     redis_client = aioredis.from_url(settings.redis_url, decode_responses=True)
     app.state.redis = redis_client
+    set_flow_state_store(create_flow_state_store(redis_client))
+    logger.info("FlowState store 初始化完成")
 
     # 初始化 HMS MySQL
     mysql_pool = await aiomysql.create_pool(

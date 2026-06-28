@@ -38,6 +38,7 @@ class Settings(BaseSettings):
 
     # Redis
     redis_url: str = "redis://localhost:6379/1"
+    flow_state_ttl_seconds: int = 60 * 60 * 24
 
     # 对话记忆
     max_conversation_turns: int = 20

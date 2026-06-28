@@ -12,6 +12,7 @@ from app.tools.doctor_tools import create_doctor_tools
 class FakeDoctorService:
     def __init__(self):
         self.last_schedule_request = None
+        self.schedule_requests = []
 
     async def schedule_detail(self, request):
         return ScheduleDetailResponse(
@@ -35,6 +36,7 @@ class FakeDoctorService:
 
     async def schedules(self, request):
         self.last_schedule_request = request
+        self.schedule_requests.append(request)
         return type("Schedules", (), {"items": []})()
 
 
@@ -196,3 +198,75 @@ async def test_query_schedule_detail_recovers_missing_confirmation_fields_from_s
             }
         ],
     }
+
+
+@pytest.mark.asyncio
+async def test_query_doctor_schedules_falls_back_to_sub_dept_lookup_when_doctor_only(
+    monkeypatch,
+):
+    class DoctorOnlyScheduleService(FakeDoctorService):
+        async def schedules(self, request):
+            self.last_schedule_request = request
+            self.schedule_requests.append(request)
+            if request.dept_sub_id is None:
+                raise ValueError("请求参数错误: dept_sub_id 不能为空")
+            return type(
+                "Schedules",
+                (),
+                {
+                    "items": [
+                        {
+                            "doctorId": request.doctor_id,
+                            "doctorName": "韩倩倩",
+                            "workPlanId": 21,
+                            "maximum": 10,
+                            "slot": [True, False, False],
+                        }
+                    ]
+                },
+            )()
+
+    class DoctorOnlyDeptService:
+        async def list_depts(self, request):
+            return type(
+                "DeptListResponse",
+                (),
+                {"items": [type("Dept", (), {"id": 1, "name": "口腔科"})()]},
+            )()
+
+        async def detail(self, request):
+            return type(
+                "DeptDetailResponse",
+                (),
+                {"sub_depts": [type("SubDept", (), {"id": 8, "name": "口腔科"})()]},
+            )()
+
+    class DoctorOnlyHmsClient:
+        def __init__(self):
+            self.doctor_service = DoctorOnlyScheduleService()
+            self.dept_service = DoctorOnlyDeptService()
+
+    async def fake_resolve_doctor(hms_client, doctor_name=None, dept_name=None):
+        return type(
+            "ResolveResult",
+            (),
+            {
+                "error": None,
+                "found": True,
+                "items": [
+                    type("Doctor", (), {"id": 19, "model_dump": lambda self: {"id": 19}})()
+                ],
+            },
+        )()
+
+    monkeypatch.setattr("app.tools.doctor_tools.resolve_doctor", fake_resolve_doctor)
+    fake_client = DoctorOnlyHmsClient()
+    tools = create_doctor_tools(fake_client)
+    query_doctor_schedules = next(tool for tool in tools if tool.name == "query_doctor_schedules")
+
+    result = await query_doctor_schedules.ainvoke({"doctor_name": "韩倩倩", "date": "今天上午"})
+
+    payload = json.loads(result)
+    assert payload["ok"] is True
+    assert fake_client.doctor_service.schedule_requests[0].dept_sub_id == 8
+    assert fake_client.doctor_service.schedule_requests[0].date == date.today().isoformat()

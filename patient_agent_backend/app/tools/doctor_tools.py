@@ -2,13 +2,19 @@
 
 import logging
 from datetime import date as date_type
+import re
 
 from langchain_core.tools import tool
 
 from app.agent.request_context import get_patient_id, get_thread_id
 from app.chat.flow_state import get_flow_state_store
 from app.hms_client import HmsClient
-from app.hms_client.models import ScheduleDetailRequest, ScheduleListRequest
+from app.hms_client.models import (
+    DeptDetailRequest,
+    DeptListRequest,
+    ScheduleDetailRequest,
+    ScheduleListRequest,
+)
 from app.tools.name_resolver import resolve_doctor, resolve_sub_dept
 from app.tools.tool_response import empty, err, ok
 
@@ -119,6 +125,44 @@ async def _hydrate_schedule_detail(result):
     return result.model_copy(update=updates)
 
 
+def _normalize_schedule_query_date(raw_date: str | None) -> str:
+    if not raw_date:
+        return date_type.today().isoformat()
+
+    text = raw_date.strip()
+    if not text:
+        return date_type.today().isoformat()
+
+    text = re.sub(r"(上午|下午|早上|晚上|中午|号)$", "", text).strip()
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", text):
+        return text
+    if text == "今天":
+        return date_type.today().isoformat()
+    if text == "明天":
+        return date_type.fromordinal(date_type.today().toordinal() + 1).isoformat()
+    if text == "后天":
+        return date_type.fromordinal(date_type.today().toordinal() + 2).isoformat()
+    return text
+
+
+async def _list_all_sub_dept_ids(hms_client: HmsClient) -> list[int]:
+    dept_list = await hms_client.dept_service.list_depts(
+        DeptListRequest(page=1, page_size=50)
+    )
+
+    sub_dept_ids: list[int] = []
+    for dept in getattr(dept_list, "items", []):
+        try:
+            detail = await hms_client.dept_service.detail(DeptDetailRequest(id=dept.id))
+        except Exception as exc:
+            logger.warning("列举诊室详情失败 dept_id=%s: %s", getattr(dept, "id", None), exc)
+            continue
+        for sub_dept in getattr(detail, "sub_depts", []) or []:
+            if getattr(sub_dept, "id", None):
+                sub_dept_ids.append(sub_dept.id)
+    return sub_dept_ids
+
+
 def create_doctor_tools(hms_client: HmsClient):
     """创建医生/排班相关工具（闭包注入 hms_client）"""
 
@@ -215,7 +259,7 @@ def create_doctor_tools(hms_client: HmsClient):
 
         # 查询排班
         all_schedules: list = []
-        effective_date = date or date_type.today().isoformat()
+        effective_date = _normalize_schedule_query_date(date)
         try:
             if sub_dept_ids and doctor_id is None:
                 for sid in sub_dept_ids:
@@ -230,6 +274,26 @@ def create_doctor_tools(hms_client: HmsClient):
                                 appointment_date=effective_date,
                             )
                             for item in resp.items
+                        ]
+                    )
+            elif doctor_id is not None and not sub_dept_ids:
+                for sid in await _list_all_sub_dept_ids(hms_client):
+                    resp = await hms_client.doctor_service.schedules(
+                        ScheduleListRequest(
+                            dept_sub_id=sid,
+                            date=effective_date,
+                            doctor_id=doctor_id,
+                        )
+                    )
+                    all_schedules.extend(
+                        [
+                            _normalize_schedule_item(
+                                item,
+                                dept_sub_id=sid,
+                                appointment_date=effective_date,
+                            )
+                            for item in resp.items
+                            if item.get("doctorId", item.get("doctor_id")) == doctor_id
                         ]
                     )
             else:

@@ -3,7 +3,7 @@ import json
 import pytest
 
 from app.agent.request_context import set_patient_session, set_thread_id
-from app.chat.flow_state import InMemoryFlowStateStore, set_flow_state_store
+from app.chat.flow_state import InMemoryFlowStateStore, RedisFlowStateStore, set_flow_state_store
 from app.tools.registration_tools import create_registration_tools
 
 
@@ -19,6 +19,23 @@ class FakeRegistrationService:
 class FakeHmsClient:
     def __init__(self):
         self.registration_service = FakeRegistrationService()
+
+
+class FakeRedis:
+    def __init__(self):
+        self.data = {}
+        self.expiry = {}
+
+    async def get(self, key):
+        return self.data.get(key)
+
+    async def set(self, key, value, ex=None):
+        self.data[key] = value
+        self.expiry[key] = ex
+
+    async def delete(self, key):
+        self.data.pop(key, None)
+        self.expiry.pop(key, None)
 
 
 @pytest.mark.asyncio
@@ -126,3 +143,40 @@ async def test_create_registration_backfills_missing_args_from_pending_confirmat
     assert request.dept_sub_id == 44
     assert str(request.appointment_date) == "2026-06-28"
     assert request.slot == 2
+
+
+@pytest.mark.asyncio
+async def test_create_registration_reads_pending_confirmation_from_redis_store():
+    store = RedisFlowStateStore(FakeRedis(), ttl_seconds=60)
+    set_flow_state_store(store)
+    await store.save(
+        "patient:9:thread-3",
+        {
+            "pending_registration_confirmation": {
+                "work_plan_id": 11,
+                "doctor_schedule_id": 22,
+                "doctor_id": 33,
+                "dept_sub_id": 44,
+                "appointment_date": "2026-06-28",
+                "slot": 1,
+                "schedule_options": [
+                    {"doctor_schedule_id": 22, "slot": 1},
+                    {"doctor_schedule_id": 23, "slot": 2},
+                ],
+            }
+        },
+    )
+    set_patient_session(type("Session", (), {"patient_id": 9})())
+    set_thread_id("thread-3")
+    client = FakeHmsClient()
+    tools = create_registration_tools(client)
+    create_registration = next(tool for tool in tools if tool.name == "create_registration")
+
+    result = await create_registration.ainvoke({"slot": 2})
+
+    payload = json.loads(result)
+    assert payload["ok"] is True
+    request = client.registration_service.create_requests[0]
+    assert request.work_plan_id == 11
+    assert request.doctor_schedule_id == 23
+    assert request.doctor_id == 33

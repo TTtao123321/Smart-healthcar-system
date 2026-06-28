@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from langchain_core.messages import AIMessage
@@ -5,7 +7,7 @@ from langchain_core.messages import AIMessage
 from app.api import chat as chat_module
 from app.api.chat import router as chat_router, set_memory
 from app.auth.dependencies import require_patient_session
-from app.chat.flow_state import InMemoryFlowStateStore, set_flow_state_store
+from app.chat.flow_state import InMemoryFlowStateStore, RedisFlowStateStore, set_flow_state_store
 from app.hms_client.models import ScheduleDetailResponse, ScheduleItem
 from app.tools import ALL_TOOLS, init_tools
 
@@ -43,6 +45,36 @@ class FakeDoctorService:
 class FakeHmsClient:
     def __init__(self):
         self.doctor_service = FakeDoctorService()
+        self.registration_service = FakeRegistrationService()
+
+
+class FakeRegistrationService:
+    def __init__(self):
+        self.create_requests = []
+
+    async def create(self, request):
+        self.create_requests.append(request)
+        return type("Resp", (), {"model_dump": lambda self: {"id": 101, "status": 0}})()
+
+    async def query(self, request):
+        return type("Resp", (), {"items": []})()
+
+
+class FakeRedis:
+    def __init__(self):
+        self.data = {}
+        self.expiry = {}
+
+    async def get(self, key):
+        return self.data.get(key)
+
+    async def set(self, key, value, ex=None):
+        self.data[key] = value
+        self.expiry[key] = ex
+
+    async def delete(self, key):
+        self.data.pop(key, None)
+        self.expiry.pop(key, None)
 
 
 class FakeGraph:
@@ -100,3 +132,36 @@ def test_chat_registration_flow_sets_pending_confirmation_state():
             }
         ],
     }
+
+
+def test_chat_registration_confirmation_uses_pre_router_with_redis_flow_state():
+    app = FastAPI()
+    app.include_router(chat_router)
+    app.dependency_overrides[require_patient_session] = lambda: FakeSession()
+
+    set_memory(FakeMemory())
+    store = RedisFlowStateStore(FakeRedis(), ttl_seconds=60)
+    set_flow_state_store(store)
+    fake_hms = FakeHmsClient()
+    init_tools(fake_hms)
+    chat_module.compile_graph = lambda: FakeGraph()
+
+    client = TestClient(app)
+    first = client.post(
+        "/api/chat",
+        headers={"Authorization": "Bearer token-1"},
+        json={"message": "帮我预约张医生今天的号", "thread_id": "flow-2"},
+    )
+    second = client.post(
+        "/api/chat",
+        headers={"Authorization": "Bearer token-1"},
+        json={"message": "确认", "thread_id": "flow-2"},
+    )
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert "挂号成功" in second.json()["message"]
+    assert fake_hms.registration_service.create_requests[0].patient_id == 88
+    assert fake_hms.registration_service.create_requests[0].work_plan_id == 11
+    remaining = asyncio.run(store.load("patient:88:flow-2"))
+    assert remaining.pending_registration_confirmation is None
