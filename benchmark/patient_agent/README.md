@@ -112,6 +112,16 @@
 - 然后跑右侧栏 fallback、挂号确认和新线程续聊旅程
 - 最后跑线程删除成功/失败两个分支
 
+### 5. 作为真实页面级 E2E 回归入口
+
+宿主机执行 Playwright，前后端运行在本机 Docker 中：
+
+    bash scripts/patient-agent-e2e.sh
+
+如需只跑单个 spec：
+
+    bash scripts/patient-agent-e2e.sh patient_agent_frontend/e2e/thread-delete.spec.js
+
 ## 数据设计约定
 
 每条 case 至少包含以下字段：
