@@ -10,9 +10,6 @@
 			<el-form-item label="门诊挂号费" prop="price_1">
 				<el-input v-model="dataForm.price_1" style="width:100%" clearable />
 			</el-form-item>
-			<el-form-item label="视频问诊费" prop="price_2">
-				<el-input v-model="dataForm.price_2" style="width:100%" clearable />
-			</el-form-item>
 		</el-form>
 		<template #footer>
 			<span class="dialog-footer">
@@ -32,15 +29,10 @@ export default {
 				id: null,
 				doctorId: null,
 				price_1: null,
-				price_2: null,
 				level: null
 			},
 			dataRule: {
 				price_1: [
-					{ required: true, message: '必须填写金额' },
-					{ pattern: '^[1-9]\\d*\\.\\d{1,2}$|^0\\.\\d{1,2}$|^[1-9]\\d*$', message: '金额格式错误' }
-				],
-				price_2: [
 					{ required: true, message: '必须填写金额' },
 					{ pattern: '^[1-9]\\d*\\.\\d{1,2}$|^0\\.\\d{1,2}$|^[1-9]\\d*$', message: '金额格式错误' }
 				]
@@ -59,7 +51,6 @@ export default {
 				that.dataForm.id = row.id;
 				that.dataForm.doctorId = row.doctorId;
 				that.dataForm.price_1 = row.price_1;
-				that.dataForm.price_2 = row.price_2;
 				that.dataForm.level = row.job || row.level;
 			});
 		},
@@ -70,8 +61,7 @@ export default {
 				let data = {
 					id: that.dataForm.id,
 					level: that.dataForm.level,
-					price_1: that.dataForm.price_1,
-					price_2: that.dataForm.price_2
+					price_1: that.dataForm.price_1
 				};
 				that.$http('/doctor_price/update', 'POST', data, true, function(resp) {
 					that.visible = false;

@@ -13,7 +13,6 @@ import Doctor from "../views/doctor.vue"
 import Patient from "../views/patient.vue"
 import DoctorPrice from "../views/doctor_price.vue"
 import DoctorSchedule from "../views/doctor_schedule.vue"
-import VideoDiagnose from "../views/video_diagnose.vue"
 import MedicalAssistant from "../views/medical_assistant.vue"
 import NotFound from "../views/404.vue"
 import Role from "../views/role.vue"
@@ -100,15 +99,6 @@ const routes = [{
 				component: DoctorSchedule,
 				meta: {
 					title: '医生出诊表',
-					isTab: true
-				}
-			},
-			{
-				path: '/video_diagnose',
-				name: 'VideoDiagnose',
-				component: VideoDiagnose,
-				meta: {
-					title: '视频问诊',
 					isTab: true
 				}
 			},

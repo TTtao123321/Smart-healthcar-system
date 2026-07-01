@@ -34,7 +34,6 @@
             md.name AS deptName,
             mds.name AS deptSubName,
             dp.price_1 AS price_1,
-            dp.price_2 AS price_2,
             dp.doctor_id AS doctorId,
             dp.id AS id,
             dp.level AS level
@@ -63,14 +62,13 @@
     </select>
 
     <insert id="insert" parameterType="com.hospital.hms.pojo.DoctorPrice">
-        INSERT INTO doctor_price (doctor_id, level, price_1, price_2)
-        VALUES (#{doctorId}, #{level}, #{price_1}, #{price_2})
+        INSERT INTO doctor_price (doctor_id, level, price_1)
+        VALUES (#{doctorId}, #{level}, #{price_1})
     </insert>
 
     <update id="update" parameterType="map">
         UPDATE doctor_price
         SET price_1 = #{price_1},
-            price_2 = #{price_2},
             level = #{level}
         WHERE id = #{id}
     </update>

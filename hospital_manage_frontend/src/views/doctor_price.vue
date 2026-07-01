@@ -80,14 +80,6 @@
 				min-width="100"
 				sortable
 			/>
-			<el-table-column
-				prop="price_2"
-				header-align="center"
-				align="center"
-				label="视频问诊价格"
-				min-width="100"
-				sortable
-			/>
 			<el-table-column header-align="center" align="center" width="150" label="操作">
 				<template #default="scope">
 					<el-button

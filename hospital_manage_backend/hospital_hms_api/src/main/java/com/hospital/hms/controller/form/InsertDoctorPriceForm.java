@@ -26,8 +26,4 @@ public class InsertDoctorPriceForm {
     @NotNull(message = "price_1不能为空")
     @Schema(description = "门诊挂号费")
     private BigDecimal price_1;
-
-    @NotNull(message = "price_2不能为空")
-    @Schema(description = "视频问诊挂号费")
-    private BigDecimal price_2;
 }

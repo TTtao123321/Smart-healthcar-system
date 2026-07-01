@@ -14,5 +14,4 @@ public class DoctorPrice implements Serializable {
     private Integer doctorId;
     private String level;
     private BigDecimal price_1;
-    private BigDecimal price_2;
 }

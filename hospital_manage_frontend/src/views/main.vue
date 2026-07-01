@@ -210,24 +210,7 @@ export default {
 		let that = this;
 		that.name = localStorage.getItem('name') || '';
 		that.routeHandle(that.$route);
-		that.$options.sockets.onopen = function(resp) {
-			//发送心跳检测，避免超时后服务端切断连接
-			setInterval(function() {
-				that.$socket.sendObj({ opt: 'ping' });
-			}, 3* 1000);
-		};
-
-    // let that = this;
-    // that.routeHandle(that.$route);
-    // that.$options.sockets.onopen = function(resp) {
-    //   //立即发出的WebSocket消息
-    //   that.$socket.sendObj({ opt: 'connected', token: localStorage.getItem('token') })
-    //   //发送心跳检测，避免超时后服务端切断连接（必须带上Token）
-    //   setInterval(function() {
-    //     that.$socket.sendObj({ opt: 'ping', token: localStorage.getItem('token') });
-    //   }, 10 * 1000);
-    // };
-  },
+	},
 	watch: {
 		$route: {
 			handler(to, from) {

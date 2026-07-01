@@ -169,24 +169,23 @@ CREATE TABLE `doctor_price`  (
   `doctor_id` int(11) NULL DEFAULT NULL,
   `level` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
   `price_1` decimal(10, 2) NULL DEFAULT NULL COMMENT '门诊挂号费',
-  `price_2` decimal(10, 2) NULL DEFAULT NULL COMMENT '视频问诊挂号费',
   PRIMARY KEY (`id`) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 21 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Dynamic;
 -- ----------------------------
 -- Records of doctor_price
 -- ----------------------------
-INSERT INTO `doctor_price` VALUES (1, 1, '主任医师', 30.00, 100.00);
-INSERT INTO `doctor_price` VALUES (2, 2, '主任医师', 30.00, 100.00);
-INSERT INTO `doctor_price` VALUES (3, 3, '主任医师', 30.00, 100.00);
-INSERT INTO `doctor_price` VALUES (4, 4, '主任医师', 30.00, 100.00);
-INSERT INTO `doctor_price` VALUES (5, 5, '主任医师', 30.00, 100.00);
-INSERT INTO `doctor_price` VALUES (6, 6, '主任医师', 30.00, 100.00);
-INSERT INTO `doctor_price` VALUES (7, 7, '主任医师', 30.00, 100.00);
-INSERT INTO `doctor_price` VALUES (8, 8, '主任医师', 30.00, 100.00);
-INSERT INTO `doctor_price` VALUES (9, 9, '主任医师', 30.00, 100.00);
-INSERT INTO `doctor_price` VALUES (10, 10, '普通', 10.00, 100.00);
-INSERT INTO `doctor_price` VALUES (11, 11, '副主任医师', 20.00, 100.00);
-INSERT INTO `doctor_price` VALUES (12, 12, '副主任医师', 20.00, 80.00);
+INSERT INTO `doctor_price` VALUES (1, 1, '主任医师', 30.00);
+INSERT INTO `doctor_price` VALUES (2, 2, '主任医师', 30.00);
+INSERT INTO `doctor_price` VALUES (3, 3, '主任医师', 30.00);
+INSERT INTO `doctor_price` VALUES (4, 4, '主任医师', 30.00);
+INSERT INTO `doctor_price` VALUES (5, 5, '主任医师', 30.00);
+INSERT INTO `doctor_price` VALUES (6, 6, '主任医师', 30.00);
+INSERT INTO `doctor_price` VALUES (7, 7, '主任医师', 30.00);
+INSERT INTO `doctor_price` VALUES (8, 8, '主任医师', 30.00);
+INSERT INTO `doctor_price` VALUES (9, 9, '主任医师', 30.00);
+INSERT INTO `doctor_price` VALUES (10, 10, '普通', 10.00);
+INSERT INTO `doctor_price` VALUES (11, 11, '副主任医师', 20.00);
+INSERT INTO `doctor_price` VALUES (12, 12, '副主任医师', 20.00);
 INSERT INTO `doctor_price` VALUES (13, 13, '普通', 10.00, 80.00);
 INSERT INTO `doctor_price` VALUES (14, 14, '普通', 10.00, 80.00);
 INSERT INTO `doctor_price` VALUES (15, 15, '普通', 10.00, 80.00);
