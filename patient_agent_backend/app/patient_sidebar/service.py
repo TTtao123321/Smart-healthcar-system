@@ -9,10 +9,11 @@ from app.patient_sidebar.models import SidebarResponse
 
 
 class PatientSidebarService:
-    def __init__(self, profile_service, registration_service, schedule_gateway):
+    def __init__(self, profile_service, registration_service, schedule_gateway, notification_repository):
         self._profile_service = profile_service
         self._registration_service = registration_service
         self._schedule_gateway = schedule_gateway
+        self._notification_repository = notification_repository
 
     async def get_sidebar(self, patient_id: int) -> SidebarResponse:
         profile = await self._profile_service.get_by_id(patient_id)
@@ -32,6 +33,12 @@ class PatientSidebarService:
         except Exception:
             schedule_payload = {"dateLabel": "", "departments": []}
 
+        notifications = []
+        try:
+            notifications = await self._notification_repository.list_recent(patient_id, limit=5)
+        except Exception:
+            notifications = []
+
         return SidebarResponse(
             profile=build_sidebar_profile(profile),
             recentVisits=recent_visits,
@@ -39,4 +46,5 @@ class PatientSidebarService:
                 schedule_payload.get("dateLabel", ""),
                 schedule_payload.get("departments", []),
             ),
+            notifications=notifications,
         )

@@ -22,6 +22,7 @@ from app.e2e.service import get_e2e_service
 from app.hms_client import HmsClient
 from app.memory.redis_memory import RedisMemory
 from app.middleware.request_context import RequestContextMiddleware
+from app.notifications import NotificationConsumer, RedisNotificationRepository
 from app.patient_profile.repository import PatientProfileRepository
 from app.patient_profile.service import PatientProfileService
 from app.patient_sidebar.schedule_gateway import PatientScheduleGateway
@@ -81,6 +82,8 @@ async def lifespan(app: FastAPI):
     patient_profile_repository = PatientProfileRepository(mysql_pool)
     patient_profile_service = PatientProfileService(patient_profile_repository)
     auth_service = AuthService(redis_client)
+    notification_repository = RedisNotificationRepository(redis_client)
+    notification_consumer = NotificationConsumer(notification_repository)
     patient_sidebar_service = PatientSidebarService(
         profile_service=patient_profile_service,
         registration_service=hms_client.registration_service,
@@ -88,10 +91,13 @@ async def lifespan(app: FastAPI):
             dept_service=hms_client.dept_service,
             doctor_service=hms_client.doctor_service,
         ),
+        notification_repository=notification_repository,
     )
     app.state.patient_profile_service = patient_profile_service
     app.state.auth_service = auth_service
     app.state.patient_sidebar_service = patient_sidebar_service
+    app.state.notification_repository = notification_repository
+    app.state.notification_consumer = notification_consumer
 
     # 初始化对话记忆
     memory = RedisMemory()
@@ -112,6 +118,9 @@ async def lifespan(app: FastAPI):
     )
     logger.info("认证模块初始化完成")
 
+    await notification_consumer.start()
+    logger.info("通知消费者初始化完成")
+
     logger.info("patient_agent_backend 启动完成")
 
     yield
@@ -119,6 +128,7 @@ async def lifespan(app: FastAPI):
     # 关闭
     logger.info("正在关闭 patient_agent_backend...")
     await hms_client.close()
+    await notification_consumer.close()
     await memory.close()
     mysql_pool.close()
     await mysql_pool.wait_closed()

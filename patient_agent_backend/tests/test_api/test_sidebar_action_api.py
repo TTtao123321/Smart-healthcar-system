@@ -60,3 +60,27 @@ def test_sidebar_action_uses_authenticated_patient():
     assert graph.state["patient_id"] == 88
     assert isinstance(graph.state["messages"][-1], HumanMessage)
     assert "confirm_registration" in graph.state["messages"][-1].content
+
+
+def test_sidebar_action_accepts_schedule_change_action():
+    app = FastAPI()
+    app.include_router(patient_router)
+    app.dependency_overrides[require_patient_session] = lambda: FakeSession()
+
+    graph = FakeGraph()
+    set_memory(FakeMemory())
+    chat_module.compile_graph = lambda: graph
+
+    client = TestClient(app)
+    response = client.post(
+        "/api/patient/sidebar/action",
+        headers={"Authorization": "Bearer token-1"},
+        json={
+            "action": "view_schedule_change",
+            "thread_id": "thread-10",
+            "payload": {"event_id": "evt-1"},
+        },
+    )
+
+    assert response.status_code == 200
+    assert "view_schedule_change" in graph.state["messages"][-1].content

@@ -40,6 +40,11 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/1"
     flow_state_ttl_seconds: int = 60 * 60 * 24
 
+    # RabbitMQ
+    rabbitmq_url: str = "amqp://guest:guest@localhost/"
+    rabbitmq_exchange: str = "hms.domain.events"
+    rabbitmq_notifications_queue: str = "patient_agent.notifications"
+
     # patient_agent 页面级 E2E
     patient_agent_e2e_mode: bool = False
     patient_agent_e2e_phone: str = "13800138000"

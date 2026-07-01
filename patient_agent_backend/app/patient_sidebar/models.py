@@ -2,6 +2,8 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
+from app.notifications.models import NotificationItem
+
 
 class SidebarProfile(BaseModel):
     patientId: str
@@ -43,3 +45,4 @@ class SidebarResponse(BaseModel):
     profile: SidebarProfile
     recentVisits: list[SidebarRecentVisit] = Field(default_factory=list)
     schedule: SidebarSchedule
+    notifications: list[NotificationItem] = Field(default_factory=list)

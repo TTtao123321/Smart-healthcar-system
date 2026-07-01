@@ -51,12 +51,21 @@ class StubScheduleGateway:
         }
 
 
+class StubNotificationRepository:
+    def __init__(self):
+        self.items = []
+
+    async def list_recent(self, patient_id: int, limit: int = 5):
+        return self.items[:limit]
+
+
 @pytest.mark.asyncio
 async def test_get_sidebar_aggregates_profile_visits_and_schedule():
     service = PatientSidebarService(
         profile_service=StubProfileService(),
         registration_service=StubRegistrationService(),
         schedule_gateway=StubScheduleGateway(),
+        notification_repository=StubNotificationRepository(),
     )
 
     result = await service.get_sidebar(123)
@@ -64,6 +73,29 @@ async def test_get_sidebar_aggregates_profile_visits_and_schedule():
     assert result.profile.patientId == "123"
     assert result.recentVisits[0].doctorName == "李芳"
     assert result.schedule.departments[0].departmentName == "内科"
+
+
+@pytest.mark.asyncio
+async def test_get_sidebar_includes_recent_notifications():
+    repo = StubNotificationRepository()
+    repo.items = [
+        {
+            "eventId": "evt-1",
+            "kind": "schedule_suspended",
+            "title": "停诊提醒",
+            "body": "您已挂号的排班已停诊",
+        }
+    ]
+    service = PatientSidebarService(
+        profile_service=StubProfileService(),
+        registration_service=StubRegistrationService(),
+        schedule_gateway=StubScheduleGateway(),
+        notification_repository=repo,
+    )
+
+    result = await service.get_sidebar(123)
+
+    assert result.notifications[0].title == "停诊提醒"
 
 
 class StubDeptServiceForGateway:
