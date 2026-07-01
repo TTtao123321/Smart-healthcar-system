@@ -3,6 +3,7 @@ package com.hospital.hms.service.impl;
 import com.hospital.common.utils.PageUtils;
 import com.hospital.hms.dao.PatientDao;
 import com.hospital.hms.pojo.PatientUserInfo;
+import com.hospital.hms.service.MedicalRegistrationService;
 import com.hospital.hms.service.PatientService;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +21,9 @@ public class PatientServiceImpl implements PatientService {
 
     @Autowired
     private PatientDao patientDao;
+
+    @Autowired
+    private MedicalRegistrationService medicalRegistrationService;
 
     @Override
     public PageUtils selectPatientByPage(Map<String, Object> map) {
@@ -58,6 +62,9 @@ public class PatientServiceImpl implements PatientService {
 
     @Override
     public int updateRegistrationStatus(Integer id, Integer status) {
+        if (status != null && status == -1) {
+            return medicalRegistrationService.cancelRegistration(id);
+        }
         return patientDao.updateRegistrationStatus(id, status);
     }
 

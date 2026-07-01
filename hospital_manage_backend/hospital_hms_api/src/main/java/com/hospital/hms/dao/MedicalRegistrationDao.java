@@ -13,5 +13,13 @@ public interface MedicalRegistrationDao {
 
     HashMap<String, Object> selectScheduleById(Integer doctorScheduleId);
 
+    HashMap<String, Object> selectScheduleForUpdate(Integer doctorScheduleId);
+
     int increaseScheduleNum(Integer doctorScheduleId);
+
+    HashMap<String, Object> selectRegistrationById(Integer registrationId);
+
+    int updateRegistrationStatus(Integer registrationId, Integer status);
+
+    int decreaseScheduleNum(Integer doctorScheduleId);
 }

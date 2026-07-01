@@ -19,9 +19,42 @@
         LIMIT 1
     </select>
 
+    <select id="selectScheduleForUpdate" parameterType="integer" resultType="java.util.HashMap">
+        SELECT dws.maximum,
+               dws.num,
+               CASE
+                   WHEN dwp.status = 1 THEN 'SUSPENDED'
+                   ELSE 'ACTIVE'
+               END AS workPlanStatus
+        FROM doctor_work_plan_schedule dws
+                 LEFT JOIN doctor_work_plan dwp ON dws.work_plan_id = dwp.id
+        WHERE dws.id = #{doctorScheduleId}
+        LIMIT 1
+        FOR UPDATE
+    </select>
+
     <update id="increaseScheduleNum" parameterType="integer">
         UPDATE doctor_work_plan_schedule
         SET num = num + 1
+        WHERE id = #{doctorScheduleId}
+    </update>
+
+    <select id="selectRegistrationById" parameterType="integer" resultType="java.util.HashMap">
+        SELECT id, doctor_schedule_id AS doctorScheduleId, status
+        FROM medical_registration
+        WHERE id = #{registrationId}
+        LIMIT 1
+    </select>
+
+    <update id="updateRegistrationStatus">
+        UPDATE medical_registration
+        SET status = #{status}
+        WHERE id = #{registrationId}
+    </update>
+
+    <update id="decreaseScheduleNum" parameterType="integer">
+        UPDATE doctor_work_plan_schedule
+        SET num = CASE WHEN num > 0 THEN num - 1 ELSE 0 END
         WHERE id = #{doctorScheduleId}
     </update>
 

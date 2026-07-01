@@ -29,9 +29,14 @@ public class MedicalRegistrationServiceImpl implements MedicalRegistrationServic
             throw new GlobalException("患者不存在");
         }
 
-        HashMap<String, Object> schedule = medicalRegistrationDao.selectScheduleById(entity.getDoctorScheduleId());
+        HashMap<String, Object> schedule = medicalRegistrationDao.selectScheduleForUpdate(entity.getDoctorScheduleId());
         if (schedule == null) {
             throw new GlobalException("排班不存在");
+        }
+
+        String workPlanStatus = MapUtil.getStr(schedule, "workPlanStatus", "ACTIVE");
+        if (!"ACTIVE".equals(workPlanStatus)) {
+            throw new GlobalException("当前排班已停诊");
         }
 
         int maximum = MapUtil.getInt(schedule, "maximum", 0);
@@ -45,5 +50,18 @@ public class MedicalRegistrationServiceImpl implements MedicalRegistrationServic
         medicalRegistrationDao.insert(entity);
         medicalRegistrationDao.increaseScheduleNum(entity.getDoctorScheduleId());
         return entity.getId();
+    }
+
+    @Override
+    @Transactional
+    public int cancelRegistration(Integer registrationId) {
+        HashMap<String, Object> registration = medicalRegistrationDao.selectRegistrationById(registrationId);
+        if (registration == null) {
+            throw new GlobalException("挂号记录不存在");
+        }
+
+        medicalRegistrationDao.updateRegistrationStatus(registrationId, -1);
+        medicalRegistrationDao.decreaseScheduleNum(MapUtil.getInt(registration, "doctorScheduleId"));
+        return 1;
     }
 }
