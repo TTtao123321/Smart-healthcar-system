@@ -67,14 +67,22 @@ public class DoctorWorkPlanScheduleServiceImpl implements DoctorWorkPlanSchedule
         HashMap firstRecord = list.get(0);
         result.put("doctorId", MapUtil.getInt(firstRecord, "doctorId"));
         result.put("maximum", MapUtil.getInt(firstRecord, "maximum"));
+        result.put("scheduleStatus", MapUtil.getStr(firstRecord, "scheduleStatus", "ACTIVE"));
         ArrayList<HashMap> temp = new ArrayList<>();
+        int totalNum = 0;
         for (HashMap map : list) {
+            int maximum = MapUtil.getInt(map, "maximum");
+            int num = MapUtil.getInt(map, "num");
+            totalNum += num;
             temp.add(new HashMap<>() {{
                 put("scheduleId", MapUtil.getInt(map, "scheduleId"));
                 put("slot", MapUtil.getInt(map, "slot"));
-                put("num", MapUtil.getInt(map, "num"));
+                put("num", num);
+                put("maximum", maximum);
+                put("remaining", Math.max(maximum - num, 0));
             }});
         }
+        result.put("num", totalNum);
         result.put("slots", temp);
         return result;
     }

@@ -173,6 +173,7 @@ class DoctorService:
                 slot=s.get("slot", 0),
                 maximum=s.get("maximum", result.get("maximum", 0)),
                 num=s.get("num", 0),
+                remaining=s.get("remaining", max(s.get("maximum", result.get("maximum", 0)) - s.get("num", 0), 0)),
             ))
 
         return ScheduleDetailResponse(
@@ -183,5 +184,6 @@ class DoctorService:
             date=result.get("date"),
             maximum=result.get("maximum", 0),
             num=result.get("num", 0),
+            schedule_status=result.get("scheduleStatus", result.get("schedule_status", "ACTIVE")),
             schedules=schedules,
         )

@@ -43,3 +43,24 @@ async def test_schedule_detail_reads_hms_slots_payload():
     assert [item.slot for item in result.schedules] == [1, 2]
     assert [item.maximum for item in result.schedules] == [10, 10]
     assert [item.num for item in result.schedules] == [0, 1]
+
+
+async def test_schedule_detail_maps_remaining_and_status():
+    client = FakeClient(
+        {
+            "result": {
+                "doctorId": 7,
+                "maximum": 3,
+                "scheduleStatus": "ACTIVE",
+                "slots": [
+                    {"scheduleId": 11, "slot": 2, "num": 1, "remaining": 2},
+                ],
+            }
+        }
+    )
+    service = DoctorService(client)
+
+    result = await service.schedule_detail(ScheduleDetailRequest(work_plan_id=123))
+
+    assert result.schedule_status == "ACTIVE"
+    assert result.schedules[0].remaining == 2

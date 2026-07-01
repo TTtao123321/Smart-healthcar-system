@@ -29,6 +29,7 @@
                s.slot AS slot,
                s.maximum AS maximum,
                s.num AS num,
+               'ACTIVE' AS scheduleStatus,
                DATE_FORMAT(p.date, '%Y-%m-%d') AS date
         FROM doctor_work_plan p
             JOIN doctor_work_plan_schedule s ON s.work_plan_id = p.id

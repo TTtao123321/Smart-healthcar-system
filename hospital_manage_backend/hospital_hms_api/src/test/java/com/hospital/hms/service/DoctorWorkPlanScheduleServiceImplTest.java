@@ -16,6 +16,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -34,6 +35,27 @@ public class DoctorWorkPlanScheduleServiceImplTest {
 
     @InjectMocks
     private DoctorWorkPlanScheduleServiceImpl doctorWorkPlanScheduleService;
+
+    @Test
+    @DisplayName("selectScheduleByWorkPlanId_返回剩余号数与排班状态")
+    void selectScheduleByWorkPlanId_返回剩余号数与排班状态() {
+        ArrayList<HashMap> rows = new ArrayList<>();
+        HashMap<String, Object> row = new HashMap<>();
+        row.put("doctorId", 19);
+        row.put("scheduleId", 951);
+        row.put("slot", 1);
+        row.put("maximum", 3);
+        row.put("num", 1);
+        row.put("scheduleStatus", "ACTIVE");
+        rows.add(row);
+        when(doctorWorkPlanScheduleDao.selectScheduleByWorkPlanId(217)).thenReturn(rows);
+
+        HashMap result = doctorWorkPlanScheduleService.selectScheduleByWorkPlanId(217);
+
+        assertEquals("ACTIVE", result.get("scheduleStatus"));
+        ArrayList<HashMap> slots = (ArrayList<HashMap>) result.get("slots");
+        assertEquals(2, slots.get(0).get("remaining"));
+    }
 
     @Test
     @DisplayName("updateSchedule_修改排班后发布更新事件")

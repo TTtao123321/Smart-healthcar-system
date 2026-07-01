@@ -144,6 +144,7 @@ class ScheduleItem(BaseModel):
     slot: int
     maximum: int
     num: int
+    remaining: int = 0
 
 
 class ScheduleListRequest(BaseModel):
@@ -172,6 +173,7 @@ class ScheduleDetailResponse(BaseModel):
     date: Optional[str] = None
     maximum: int = 0
     num: int = 0
+    schedule_status: str = "ACTIVE"
     schedules: list[ScheduleItem] = Field(default_factory=list)
 
 
