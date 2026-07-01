@@ -4,13 +4,18 @@ import cn.hutool.core.map.MapUtil;
 import com.hospital.common.exception.GlobalException;
 import com.hospital.hms.dao.MedicalRegistrationDao;
 import com.hospital.hms.dao.PatientDao;
+import com.hospital.hms.event.HmsDomainEvent;
+import com.hospital.hms.event.HmsDomainEventPublisher;
+import com.hospital.hms.event.RegistrationEventPayload;
 import com.hospital.hms.pojo.MedicalRegistration;
 import com.hospital.hms.service.MedicalRegistrationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.HashMap;
+import java.util.UUID;
 
 @Service
 public class MedicalRegistrationServiceImpl implements MedicalRegistrationService {
@@ -20,6 +25,9 @@ public class MedicalRegistrationServiceImpl implements MedicalRegistrationServic
 
     @Autowired
     private PatientDao patientDao;
+
+    @Autowired
+    private HmsDomainEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -49,6 +57,7 @@ public class MedicalRegistrationServiceImpl implements MedicalRegistrationServic
         entity.setPaymentStatus(0);
         medicalRegistrationDao.insert(entity);
         medicalRegistrationDao.increaseScheduleNum(entity.getDoctorScheduleId());
+        eventPublisher.publishAfterCommit(buildRegistrationEvent("registration.created", entity.getId(), entity));
         return entity.getId();
     }
 
@@ -61,7 +70,39 @@ public class MedicalRegistrationServiceImpl implements MedicalRegistrationServic
         }
 
         medicalRegistrationDao.updateRegistrationStatus(registrationId, -1);
+        MedicalRegistration entity = new MedicalRegistration();
+        entity.setId(registrationId);
+        entity.setPatientId(MapUtil.getInt(registration, "patientId"));
+        entity.setWorkPlanId(MapUtil.getInt(registration, "workPlanId"));
+        entity.setDoctorScheduleId(MapUtil.getInt(registration, "doctorScheduleId"));
+        entity.setDoctorId(MapUtil.getInt(registration, "doctorId"));
+        entity.setDeptSubId(MapUtil.getInt(registration, "deptSubId"));
+        entity.setDate(MapUtil.getStr(registration, "date"));
+        entity.setSlot(MapUtil.getInt(registration, "slot"));
         medicalRegistrationDao.decreaseScheduleNum(MapUtil.getInt(registration, "doctorScheduleId"));
+        eventPublisher.publishAfterCommit(buildRegistrationEvent("registration.cancelled", registrationId, entity));
         return 1;
+    }
+
+    private HmsDomainEvent<RegistrationEventPayload> buildRegistrationEvent(
+            String eventType, Integer registrationId, MedicalRegistration entity) {
+        return new HmsDomainEvent<>(
+                UUID.randomUUID().toString(),
+                eventType,
+                Instant.now(),
+                UUID.randomUUID().toString(),
+                "system",
+                null,
+                new RegistrationEventPayload(
+                        registrationId,
+                        entity.getPatientId(),
+                        entity.getWorkPlanId(),
+                        entity.getDoctorScheduleId(),
+                        entity.getDoctorId(),
+                        entity.getDeptSubId(),
+                        entity.getDate(),
+                        entity.getSlot()
+                )
+        );
     }
 }

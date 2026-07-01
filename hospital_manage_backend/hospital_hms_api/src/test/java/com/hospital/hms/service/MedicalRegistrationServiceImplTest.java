@@ -3,6 +3,8 @@ package com.hospital.hms.service;
 import com.hospital.common.exception.GlobalException;
 import com.hospital.hms.dao.MedicalRegistrationDao;
 import com.hospital.hms.dao.PatientDao;
+import com.hospital.hms.event.HmsDomainEventPublisher;
+import com.hospital.hms.event.RegistrationEventPayload;
 import com.hospital.hms.pojo.MedicalRegistration;
 import com.hospital.hms.service.impl.MedicalRegistrationServiceImpl;
 import org.junit.jupiter.api.DisplayName;
@@ -17,6 +19,7 @@ import java.util.HashMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -30,6 +33,9 @@ public class MedicalRegistrationServiceImplTest {
 
     @Mock
     private PatientDao patientDao;
+
+    @Mock
+    private HmsDomainEventPublisher eventPublisher;
 
     @InjectMocks
     private MedicalRegistrationServiceImpl medicalRegistrationService;
@@ -65,6 +71,11 @@ public class MedicalRegistrationServiceImplTest {
 
         assertEquals(66, id);
         verify(medicalRegistrationDao).increaseScheduleNum(100);
+        verify(eventPublisher).publishAfterCommit(argThat(event ->
+                "registration.created".equals(event.eventType())
+                        && event.payload() instanceof RegistrationEventPayload
+                        && ((RegistrationEventPayload) event.payload()).getPatientId().equals(1)
+        ));
     }
 
     @Test
@@ -119,6 +130,11 @@ public class MedicalRegistrationServiceImplTest {
         assertEquals(1, result);
         verify(medicalRegistrationDao).updateRegistrationStatus(66, -1);
         verify(medicalRegistrationDao).decreaseScheduleNum(100);
+        verify(eventPublisher).publishAfterCommit(argThat(event ->
+                "registration.cancelled".equals(event.eventType())
+                        && event.payload() instanceof RegistrationEventPayload
+                        && ((RegistrationEventPayload) event.payload()).getDoctorScheduleId().equals(100)
+        ));
     }
 
     private MedicalRegistration buildRegistration() {

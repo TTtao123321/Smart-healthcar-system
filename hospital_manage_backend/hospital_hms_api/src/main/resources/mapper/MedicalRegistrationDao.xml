@@ -40,7 +40,15 @@
     </update>
 
     <select id="selectRegistrationById" parameterType="integer" resultType="java.util.HashMap">
-        SELECT id, doctor_schedule_id AS doctorScheduleId, status
+        SELECT id,
+               patient_id AS patientId,
+               work_plan_id AS workPlanId,
+               doctor_schedule_id AS doctorScheduleId,
+               doctor_id AS doctorId,
+               dept_sub_id AS deptSubId,
+               DATE_FORMAT(date, '%Y-%m-%d') AS date,
+               slot,
+               status
         FROM medical_registration
         WHERE id = #{registrationId}
         LIMIT 1

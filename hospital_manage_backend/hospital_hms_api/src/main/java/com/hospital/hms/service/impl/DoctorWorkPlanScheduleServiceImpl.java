@@ -8,6 +8,9 @@ import com.hospital.hms.common.Constants;
 import com.hospital.hms.common.OperationMessage;
 import com.hospital.hms.controller.form.DoctorScheduleSlotVO;
 import com.hospital.hms.dao.DoctorWorkPlanScheduleDao;
+import com.hospital.hms.event.HmsDomainEvent;
+import com.hospital.hms.event.HmsDomainEventPublisher;
+import com.hospital.hms.event.ScheduleEventPayload;
 import com.hospital.hms.pojo.DoctorWorkPlanSchedule;
 import com.hospital.hms.service.DoctorWorkPlanScheduleService;
 import lombok.extern.log4j.Log4j2;
@@ -16,7 +19,9 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static com.hospital.hms.common.Constants.WORK_PLAN_SCHEDULE_KEY;
 
@@ -28,6 +33,9 @@ public class DoctorWorkPlanScheduleServiceImpl implements DoctorWorkPlanSchedule
 
     @Autowired
     private RedisTemplate redisTemplate;
+
+    @Autowired
+    private HmsDomainEventPublisher eventPublisher;
 
     @Override
     public ArrayList<HashMap> selectDoctorScheduleByDeptSubIdAndDate(Map<String, Object> map) {
@@ -92,10 +100,11 @@ public class DoctorWorkPlanScheduleServiceImpl implements DoctorWorkPlanSchedule
         });
         addSchedules(addList);
         deleteSchedules(removeList);
+        eventPublisher.publishAfterCommit(buildScheduleEvent("schedule.updated", workPlanId, slots));
     }
 
     private void deleteSchedules(ArrayList<Integer> removeList) {
-        if (removeList == null) {
+        if (removeList == null || removeList.isEmpty()) {
             return;
         }
         long sum = doctorWorkPlanScheduleDao.selectSumNumByIds(removeList);
@@ -107,7 +116,7 @@ public class DoctorWorkPlanScheduleServiceImpl implements DoctorWorkPlanSchedule
     }
 
     private void addSchedules(ArrayList<DoctorWorkPlanSchedule> addList) {
-        if (addList == null) {
+        if (addList == null || addList.isEmpty()) {
             return;
         }
         int workPlanId = addList.get(0).getWorkPlanId();
@@ -135,9 +144,9 @@ public class DoctorWorkPlanScheduleServiceImpl implements DoctorWorkPlanSchedule
             }
             //问题：这个步骤放在doctorWorkPlanScheduleDao.deleteScheduleByWorkPlanId(workPlanId);后面会不执行
             doctorWorkPlanScheduleDao.deletePlanByWorkPlanId(workPlanId);
+            ArrayList<Integer> scheduleIds = doctorWorkPlanScheduleDao.selectScheduleIdsByWorkPlanId(workPlanId);
             try {
-                ArrayList<Integer> list = doctorWorkPlanScheduleDao.selectScheduleIdsByWorkPlanId(workPlanId);
-                for (Integer scheduleId : list) {
+                for (Integer scheduleId : scheduleIds) {
                     if (scheduleId != null) {
                         String key = WORK_PLAN_SCHEDULE_KEY + scheduleId;
                         redisTemplate.delete(key);
@@ -147,8 +156,41 @@ public class DoctorWorkPlanScheduleServiceImpl implements DoctorWorkPlanSchedule
                 log.error("删除redis缓存失败!");
             }
             doctorWorkPlanScheduleDao.deleteScheduleByWorkPlanId(workPlanId);
+            eventPublisher.publishAfterCommit(buildScheduleEvent("schedule.suspended", workPlanId, listToSlots(scheduleIds)));
         } catch (GlobalException e) {
             throw new GlobalException("删除失败！"+ e.getMessage());
         }
+    }
+
+    private ArrayList<DoctorScheduleSlotVO> listToSlots(ArrayList<Integer> scheduleIds) {
+        ArrayList<DoctorScheduleSlotVO> slots = new ArrayList<>();
+        if (scheduleIds == null) {
+            return slots;
+        }
+        scheduleIds.forEach(id -> {
+            DoctorScheduleSlotVO slot = new DoctorScheduleSlotVO();
+            slot.setScheduleId(id);
+            slots.add(slot);
+        });
+        return slots;
+    }
+
+    private HmsDomainEvent<ScheduleEventPayload> buildScheduleEvent(
+            String eventType, Integer workPlanId, List<DoctorScheduleSlotVO> slots) {
+        List<Integer> scheduleIds = slots == null
+                ? Collections.emptyList()
+                : slots.stream()
+                .map(DoctorScheduleSlotVO::getScheduleId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+        return new HmsDomainEvent<>(
+                UUID.randomUUID().toString(),
+                eventType,
+                Instant.now(),
+                UUID.randomUUID().toString(),
+                "system",
+                null,
+                new ScheduleEventPayload(workPlanId, scheduleIds, eventType, Collections.emptyMap(), Collections.emptyMap(), Collections.emptyList())
+        );
     }
 }
