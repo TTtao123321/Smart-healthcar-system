@@ -12,6 +12,8 @@ from app.hms_client.models import (
     RegistrationCreateRequest, RegistrationCreateResponse,
     RegistrationQueryRequest, RegistrationQueryResponse,
     RegistrationCancelRequest, RegistrationCancelResponse,
+    MedicalRecordListResponse, MedicalRecordDetailResponse,
+    PrescriptionListResponse, PrescriptionDetailResponse,
     SmsCodeRequest, SmsCodeResponse,
     PatientLoginRequest, PatientLoginResponse,
     PatientLogoutResponse,
@@ -52,6 +54,17 @@ RegistrationServiceContract = {
     "create": RequestResponsePair(request=RegistrationCreateRequest, response=RegistrationCreateResponse),
     "query": RequestResponsePair(request=RegistrationQueryRequest, response=RegistrationQueryResponse),
     "cancel": RequestResponsePair(request=RegistrationCancelRequest, response=RegistrationCancelResponse),
+}
+
+# 患者结果查询契约
+MedicalRecordServiceContract = {
+    "list": RequestResponsePair(request=None, response=MedicalRecordListResponse),
+    "detail": RequestResponsePair(request=None, response=MedicalRecordDetailResponse),
+}
+
+PrescriptionServiceContract = {
+    "list": RequestResponsePair(request=None, response=PrescriptionListResponse),
+    "detail": RequestResponsePair(request=None, response=PrescriptionDetailResponse),
 }
 
 # 患者认证契约

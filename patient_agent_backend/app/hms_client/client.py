@@ -15,6 +15,8 @@ from app.hms_client.exceptions import (
 from app.logging_utils import get_request_logger
 from app.hms_client.services.dept_service import DeptService
 from app.hms_client.services.doctor_service import DoctorService
+from app.hms_client.services.medical_record_service import MedicalRecordService
+from app.hms_client.services.prescription_service import PrescriptionService
 from app.hms_client.services.registration_service import RegistrationService
 
 logger = get_request_logger(__name__)
@@ -37,6 +39,8 @@ class HmsClient:
         self.dept_service = DeptService(self)
         self.doctor_service = DoctorService(self)
         self.registration_service = RegistrationService(self)
+        self.medical_record_service = MedicalRecordService(self)
+        self.prescription_service = PrescriptionService(self)
 
     async def login_admin(self, username: str = "", password: str = "") -> None:
         """使用管理员账号登录 HMS，获取 SaToken

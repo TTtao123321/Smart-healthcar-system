@@ -3,6 +3,7 @@
 from langgraph.graph import END, StateGraph
 
 from app.agent.nodes import agent, guard_in, guard_out, handoff, should_continue
+from app.agent.prompts import build_patient_system_prompt
 from app.agent.state import AgentState
 from app import tools as tools_module
 
@@ -10,13 +11,15 @@ from app import tools as tools_module
 _compiled_graph = None
 
 
-def build_graph() -> StateGraph:
+def build_graph(tools: list | None = None, system_prompt: str | None = None) -> StateGraph:
     """构建 Agent 状态图"""
     graph = StateGraph(AgentState)
+    active_tools = tools if tools is not None else tools_module.ALL_TOOLS
+    active_prompt = system_prompt or build_patient_system_prompt()
 
     # 异步包装：将 agent 节点与工具绑定（内部处理工具调用循环）
     async def agent_with_tools(state):
-        return await agent(state, tools_module.ALL_TOOLS)
+        return await agent(state, active_tools, active_prompt)
 
     # 添加节点
     graph.add_node("guard_in", guard_in)
@@ -43,9 +46,17 @@ def build_graph() -> StateGraph:
     return graph
 
 
-def compile_graph():
+def compile_graph(
+    *,
+    tools: list | None = None,
+    system_prompt: str | None = None,
+    channel: str = "patient",
+    clinician_context=None,
+):
     """编译并返回可执行的 Agent 图（带缓存）"""
     global _compiled_graph
+    if tools is not None or system_prompt is not None or channel != "patient" or clinician_context is not None:
+        return build_graph(tools=tools, system_prompt=system_prompt).compile()
     if _compiled_graph is None:
         graph = build_graph()
         _compiled_graph = graph.compile()

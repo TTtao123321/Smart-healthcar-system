@@ -9,6 +9,8 @@ class FakeClient:
 
     async def post(self, path: str, json: dict | None = None):
         self.requests.append({"path": path, "json": json})
+        if isinstance(self.response, dict) and path in self.response:
+            return self.response[path]
         return self.response
 
 
@@ -103,3 +105,46 @@ async def test_query_recent_reads_top_level_hms_select_detail_payload():
     result = await service.query_recent(patient_id=1, limit=2)
 
     assert [item["registrationId"] for item in result] == [38, 30]
+
+
+async def test_query_recent_keeps_result_ready_visit_when_newer_visits_have_no_results():
+    client = FakeClient(
+        {
+            "/patient/selectDetail": {
+                "registrations": [
+                    {"registrationId": 36, "date": "2026-07-01"},
+                    {"registrationId": 28, "date": "2026-06-28"},
+                    {"registrationId": 20, "date": "2026-06-26"},
+                    {"registrationId": 11, "date": "2026-06-14"},
+                ]
+            },
+            "/patient/medical-records": {
+                "result": [
+                    {
+                        "registrationId": 11,
+                        "medicalRecordId": 8,
+                        "status": "PRESCRIPTION_READY",
+                    }
+                ]
+            },
+            "/patient/prescriptions": {
+                "result": [
+                    {
+                        "registrationId": 11,
+                        "medicalRecordId": 8,
+                        "prescriptionId": 9,
+                    }
+                ]
+            },
+        }
+    )
+    service = RegistrationService(client)
+
+    result = await service.query_recent(patient_id=7, limit=3)
+
+    assert [item["registrationId"] for item in result] == [36, 28, 11]
+    result_ready_visit = result[2]
+    assert result_ready_visit["medicalRecordId"] == 8
+    assert result_ready_visit["hasPrescription"] is True
+    assert result_ready_visit["prescriptionId"] == 9
+    assert result_ready_visit["latestResultStatus"] == "PRESCRIPTION_READY"

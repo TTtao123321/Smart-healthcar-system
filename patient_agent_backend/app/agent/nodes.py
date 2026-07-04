@@ -1,6 +1,7 @@
 """LangGraph 图节点实现"""
 
 import logging
+from typing import Any
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
@@ -17,7 +18,7 @@ logger = get_request_logger(__name__)
 
 # 复用 LLM 实例（避免每次请求重新创建）
 _llm: ChatOpenAI | None = None
-_llm_with_tools: ChatOpenAI | None = None
+_llm_with_tools: dict[tuple[str, ...], ChatOpenAI] = {}
 
 
 def _get_llm(tools: list | None = None) -> ChatOpenAI:
@@ -25,10 +26,11 @@ def _get_llm(tools: list | None = None) -> ChatOpenAI:
     global _llm, _llm_with_tools
 
     if tools:
-        if _llm_with_tools is None:
+        tool_key = tuple(tool.name for tool in tools)
+        if tool_key not in _llm_with_tools:
             base_llm = _get_llm()
-            _llm_with_tools = base_llm.bind_tools(tools)
-        return _llm_with_tools
+            _llm_with_tools[tool_key] = base_llm.bind_tools(tools)
+        return _llm_with_tools[tool_key]
 
     if _llm is None:
         _llm = ChatOpenAI(
@@ -44,7 +46,7 @@ def reset_llm() -> None:
     """重置 LLM 缓存（配置变更后调用）"""
     global _llm, _llm_with_tools
     _llm = None
-    _llm_with_tools = None
+    _llm_with_tools = {}
 
 def guard_in(state: AgentState) -> dict:
     """输入安全护栏节点"""
@@ -73,7 +75,7 @@ def guard_in(state: AgentState) -> dict:
     return updates
 
 
-async def agent(state: AgentState, tools: list) -> dict:
+async def agent(state: AgentState, tools: list, system_prompt: str = SYSTEM_PROMPT) -> dict:
     """LLM 推理节点 — 内部处理工具调用循环"""
     messages = state.get("messages", [])
 
@@ -83,7 +85,7 @@ async def agent(state: AgentState, tools: list) -> dict:
         return {}
 
     # 构建消息列表，添加 SystemMessage
-    system_msg = SystemMessage(content=SYSTEM_PROMPT)
+    system_msg = SystemMessage(content=system_prompt)
     llm_messages = [system_msg] + list(messages)
 
     # 获取 LLM 实例（绑定工具）

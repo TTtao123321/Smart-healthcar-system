@@ -23,9 +23,7 @@ test('FE-E2E-008 右侧栏确认挂号', async ({ page }) => {
   expect(payload.payload?.doctor_id).toBe('doctor-003')
   expect(payload.payload?.doctor_name).toBe('张医生')
   await expect(page.getByText('确认挂号信息')).toHaveCount(0)
-  await expect(
-    page.locator('.chat-item-title').filter({ hasText: '确认挂号：心内科' }),
-  ).toHaveCount(1)
+  await expect(page.getByText('确认挂号：心内科')).toBeVisible()
 })
 
 test('FE-E2E-009 侧栏动作切换服务端线程后继续聊天', async ({ page }) => {

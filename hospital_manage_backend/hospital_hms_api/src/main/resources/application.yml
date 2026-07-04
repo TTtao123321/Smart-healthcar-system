@@ -88,6 +88,9 @@ minio:
 wechat:
   app-id: your-wechat-app-id
   app-secret: your-wechat-app-secret
+
+patient-agent:
+  base-url: ${PATIENT_AGENT_BASE_URL:http://localhost:8000}
 #  pay:
 #    v3:
 #      patient-wx-api:

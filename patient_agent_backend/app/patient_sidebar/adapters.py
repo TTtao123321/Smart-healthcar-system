@@ -51,6 +51,19 @@ def build_recent_visits(items: list[dict], limit: int = 3) -> list[SidebarRecent
             visitDate=item.get("date") or "",
             department=item.get("deptSubName") or item.get("deptName") or "--",
             doctorName=item.get("doctorName") or "--",
+            hasMedicalRecord=bool(item.get("medicalRecordId")),
+            hasPrescription=bool(item.get("hasPrescription")),
+            latestResultStatus=item.get("latestResultStatus") or "",
+            medicalRecordId=(
+                str(item.get("medicalRecordId"))
+                if item.get("medicalRecordId") not in (None, "")
+                else None
+            ),
+            prescriptionId=(
+                str(item.get("prescriptionId"))
+                if item.get("prescriptionId") not in (None, "")
+                else None
+            ),
         )
         for item in items
     ]

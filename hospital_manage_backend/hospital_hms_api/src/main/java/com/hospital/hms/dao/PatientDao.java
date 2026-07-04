@@ -28,5 +28,21 @@ public interface PatientDao {
      */
     PatientUserInfo selectPatientByTel(String tel);
 
+    List<HashMap<String, Object>> selectPatientMedicalRecords(@Param("patientId") Integer patientId,
+                                                              @Param("startDate") String startDate,
+                                                              @Param("endDate") String endDate);
+
+    HashMap<String, Object> selectPatientMedicalRecordDetail(@Param("patientId") Integer patientId,
+                                                             @Param("medicalRecordId") Integer medicalRecordId);
+
+    List<HashMap<String, Object>> selectPatientPrescriptions(@Param("patientId") Integer patientId,
+                                                             @Param("startDate") String startDate,
+                                                             @Param("endDate") String endDate);
+
+    HashMap<String, Object> selectPatientPrescriptionDetail(@Param("patientId") Integer patientId,
+                                                            @Param("prescriptionId") Integer prescriptionId);
+
+    List<HashMap<String, Object>> selectPatientPrescriptionItems(@Param("prescriptionId") Integer prescriptionId);
+
     int updateRegistrationStatus(@Param("id") Integer id, @Param("status") Integer status);
 }

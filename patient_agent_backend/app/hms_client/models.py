@@ -232,6 +232,89 @@ class RegistrationCancelResponse(BaseModel):
     result: int = 0
 
 
+# ============ 患者结果 ============
+
+class MedicalRecordListItem(BaseModel):
+    medicalRecordId: int
+    registrationId: Optional[int] = None
+    visitDate: Optional[str] = None
+    slot: Optional[int] = None
+    department: Optional[str] = None
+    deptSubName: Optional[str] = None
+    doctorName: Optional[str] = None
+    chiefComplaintSummary: Optional[str] = None
+    status: Optional[str] = None
+
+
+class MedicalRecordListResponse(BaseModel):
+    items: list[MedicalRecordListItem] = Field(default_factory=list)
+
+
+class MedicalRecordDetailResponse(BaseModel):
+    medicalRecordId: int
+    registrationId: Optional[int] = None
+    visitDate: Optional[str] = None
+    slot: Optional[int] = None
+    department: Optional[str] = None
+    deptSubName: Optional[str] = None
+    doctorName: Optional[str] = None
+    chiefComplaint: Optional[str] = None
+    diagnosisSummary: Optional[str] = None
+    instructionSummary: Optional[str] = None
+    presentIllness: Optional[str] = None
+    physicalExam: Optional[str] = None
+    diagnosis: Optional[str] = None
+    doctorAdvice: Optional[str] = None
+    remark: Optional[str] = None
+
+
+class PrescriptionListItem(BaseModel):
+    prescriptionId: int
+    medicalRecordId: Optional[int] = None
+    registrationId: Optional[int] = None
+    visitDate: Optional[str] = None
+    slot: Optional[int] = None
+    department: Optional[str] = None
+    deptSubName: Optional[str] = None
+    doctorName: Optional[str] = None
+    type: Optional[int] = None
+    status: Optional[int | str] = None
+    createTime: Optional[str] = None
+
+
+class PrescriptionListResponse(BaseModel):
+    items: list[PrescriptionListItem] = Field(default_factory=list)
+
+
+class PrescriptionDetailItem(BaseModel):
+    id: Optional[int] = None
+    prescriptionId: Optional[int] = None
+    drugName: Optional[str] = None
+    specification: Optional[str] = None
+    quantity: Optional[int] = None
+    dosage: Optional[str] = None
+    frequency: Optional[str] = None
+    days: Optional[int] = None
+    remark: Optional[str] = None
+
+
+class PrescriptionDetailResponse(BaseModel):
+    prescriptionId: int
+    medicalRecordId: Optional[int] = None
+    registrationId: Optional[int] = None
+    visitDate: Optional[str] = None
+    slot: Optional[int] = None
+    department: Optional[str] = None
+    deptSubName: Optional[str] = None
+    doctorName: Optional[str] = None
+    type: Optional[int] = None
+    status: Optional[int | str] = None
+    createTime: Optional[str] = None
+    diagnosis: Optional[str] = None
+    doctorAdvice: Optional[str] = None
+    items: list[PrescriptionDetailItem] = Field(default_factory=list)
+
+
 # ============ 患者认证 ============
 
 class SmsCodeRequest(BaseModel):

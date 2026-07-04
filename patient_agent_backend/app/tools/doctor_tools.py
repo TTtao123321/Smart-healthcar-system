@@ -276,8 +276,9 @@ def create_doctor_tools(hms_client: HmsClient):
                             for item in resp.items
                         ]
                     )
-            elif doctor_id is not None and not sub_dept_ids:
-                for sid in await _list_all_sub_dept_ids(hms_client):
+            elif doctor_id is not None:
+                target_sub_dept_ids = sub_dept_ids or await _list_all_sub_dept_ids(hms_client)
+                for sid in target_sub_dept_ids:
                     resp = await hms_client.doctor_service.schedules(
                         ScheduleListRequest(
                             dept_sub_id=sid,

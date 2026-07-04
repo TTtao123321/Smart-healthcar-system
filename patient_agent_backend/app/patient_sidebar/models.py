@@ -19,6 +19,11 @@ class SidebarRecentVisit(BaseModel):
     visitDate: str
     department: str
     doctorName: str
+    hasMedicalRecord: bool = False
+    hasPrescription: bool = False
+    latestResultStatus: str = ""
+    medicalRecordId: Optional[str] = None
+    prescriptionId: Optional[str] = None
 
 
 class SidebarDoctor(BaseModel):

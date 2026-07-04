@@ -14,6 +14,7 @@ from app.auth.service import AuthService
 from app.api import auth as auth_module
 from app.api.auth import router as auth_router
 from app.api.chat import router as chat_router, set_memory
+from app.api.clinician_chat import router as clinician_chat_router
 from app.api.e2e import router as e2e_router
 from app.api.patient import router as patient_router
 from app.chat.flow_state import RedisFlowStateStore, set_flow_state_store
@@ -157,6 +158,7 @@ app.add_middleware(
 # 注册路由
 app.include_router(auth_router)
 app.include_router(chat_router)
+app.include_router(clinician_chat_router)
 app.include_router(patient_router)
 app.include_router(e2e_router)
 

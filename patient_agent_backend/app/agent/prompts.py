@@ -73,3 +73,7 @@ SYSTEM_PROMPT = """你是XX医院智慧服务助手，仅提供就医流程引�
 """
 
 HANDOFF_MESSAGE = "您好，我已为您转接人工客服，请稍候。人工客服将为您提供进一步的帮助。"
+
+
+def build_patient_system_prompt() -> str:
+    return SYSTEM_PROMPT

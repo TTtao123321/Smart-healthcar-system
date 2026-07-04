@@ -84,3 +84,27 @@ def test_sidebar_action_accepts_schedule_change_action():
 
     assert response.status_code == 200
     assert "view_schedule_change" in graph.state["messages"][-1].content
+
+
+def test_sidebar_action_accepts_recent_prescription_action():
+    app = FastAPI()
+    app.include_router(patient_router)
+    app.dependency_overrides[require_patient_session] = lambda: FakeSession()
+
+    graph = FakeGraph()
+    set_memory(FakeMemory())
+    chat_module.compile_graph = lambda: graph
+
+    client = TestClient(app)
+    response = client.post(
+        "/api/patient/sidebar/action",
+        headers={"Authorization": "Bearer token-1"},
+        json={
+            "action": "view_recent_prescription",
+            "thread_id": "thread-11",
+            "payload": {"prescription_id": 18},
+        },
+    )
+
+    assert response.status_code == 200
+    assert "view_recent_prescription" in graph.state["messages"][-1].content

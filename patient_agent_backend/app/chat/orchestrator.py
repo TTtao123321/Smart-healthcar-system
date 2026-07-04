@@ -4,20 +4,55 @@ from typing import AsyncIterator, Callable
 
 from langchain_core.messages import AIMessage, HumanMessage
 
+from app.agent.prompts import build_patient_system_prompt
 from app.agent.request_context import set_patient_session, set_thread_id
 from app.agent.state import AgentState
 from app.chat.pre_router import try_pre_route
 from app.logging_utils import get_request_logger, log_chat_result
 from app.chat.models import ChatRunResult, ChatStreamEvent
 from app.chat.output_filters import sanitize_visible_message
+from app.clinician.context import set_clinician_context
 
 logger = get_request_logger(__name__)
 
 
 class ChatOrchestrator:
-    def __init__(self, memory, graph_factory: Callable):
+    def __init__(
+        self,
+        memory,
+        graph_factory: Callable,
+        *,
+        channel: str = "patient",
+        clinician_context=None,
+    ):
         self._memory = memory
         self._graph_factory = graph_factory
+        self._channel = channel
+        self._clinician_context = clinician_context
+
+    def _resolve_tools(self) -> list:
+        from app.clinician.tool_registry import get_tools_for_channel
+
+        return get_tools_for_channel(self._channel, self._clinician_context)
+
+    def _resolve_system_prompt(self) -> str:
+        if self._channel == "clinician" and self._clinician_context is not None:
+            from app.clinician.prompts import build_clinician_system_prompt
+
+            return build_clinician_system_prompt(self._clinician_context)
+        return build_patient_system_prompt()
+
+    def _create_graph(self):
+        kwargs = {
+            "tools": self._resolve_tools(),
+            "system_prompt": self._resolve_system_prompt(),
+            "channel": self._channel,
+            "clinician_context": self._clinician_context,
+        }
+        try:
+            return self._graph_factory(**kwargs)
+        except TypeError:
+            return self._graph_factory()
 
     async def _load_history(self, patient_id: int, thread_id: str) -> list[dict]:
         return await self._memory.load_messages(patient_id, thread_id)
@@ -69,12 +104,15 @@ class ChatOrchestrator:
     async def run_once(self, *, session, user_message: str, thread_id: str) -> ChatRunResult:
         set_patient_session(session)
         set_thread_id(thread_id)
+        set_clinician_context(self._clinician_context)
         history = await self._load_history(session.patient_id, thread_id)
-        pre_routed = await try_pre_route(
-            session=session,
-            thread_id=thread_id,
-            user_message=user_message,
-        )
+        pre_routed = None
+        if self._channel == "patient":
+            pre_routed = await try_pre_route(
+                session=session,
+                thread_id=thread_id,
+                user_message=user_message,
+            )
         if pre_routed is not None:
             await self._save_history(
                 patient_id=session.patient_id,
@@ -93,7 +131,7 @@ class ChatOrchestrator:
 
         state: AgentState = self._build_state(history, user_message, session.patient_id)
 
-        result = await self._graph_factory().ainvoke(state)
+        result = await self._create_graph().ainvoke(state)
         raw_reply = ""
         raw_reply_type = "none"
         for msg in reversed(result.get("messages", [])):
@@ -143,12 +181,15 @@ class ChatOrchestrator:
     ) -> AsyncIterator[ChatStreamEvent]:
         set_patient_session(session)
         set_thread_id(thread_id)
+        set_clinician_context(self._clinician_context)
         history = await self._load_history(session.patient_id, thread_id)
-        pre_routed = await try_pre_route(
-            session=session,
-            thread_id=thread_id,
-            user_message=user_message,
-        )
+        pre_routed = None
+        if self._channel == "patient":
+            pre_routed = await try_pre_route(
+                session=session,
+                thread_id=thread_id,
+                user_message=user_message,
+            )
         if pre_routed is not None:
             await self._save_history(
                 patient_id=session.patient_id,
@@ -171,7 +212,7 @@ class ChatOrchestrator:
             return
 
         state: AgentState = self._build_state(history, user_message, session.patient_id)
-        graph = self._graph_factory()
+        graph = self._create_graph()
 
         try:
             visible_response = ""

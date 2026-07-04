@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock
 
 from app.chat.orchestrator import ChatOrchestrator
 from app.chat.models import ChatRunResult
+from app.clinician.models import ClinicianContext
 
 
 class FakeMemory:
@@ -87,6 +88,42 @@ async def test_run_once_uses_pre_router_before_graph(monkeypatch):
     assert result.message == "前置路由回复"
     assert graph.state is None
     assert memory.saved[1] == "thread-2"
+
+
+async def test_run_once_passes_clinician_channel_tools_and_prompt(monkeypatch):
+    captured = {}
+
+    class FakeGraph:
+        async def ainvoke(self, state):
+            return {"messages": [AIMessage(content="临床回复")], "needs_handoff": False}
+
+    def graph_factory(**kwargs):
+        captured.update(kwargs)
+        return FakeGraph()
+
+    orchestrator = ChatOrchestrator(
+        memory=FakeMemory(),
+        graph_factory=graph_factory,
+        channel="clinician",
+        clinician_context=ClinicianContext(
+            user_id=9,
+            role_codes=["DOCTOR"],
+            dept_scope=[3],
+            doctor_scope=[12],
+        ),
+    )
+    monkeypatch.setattr("app.chat.orchestrator.try_pre_route", AsyncMock(return_value=None))
+
+    result = await orchestrator.run_once(
+        session=FakeSession(),
+        user_message="查一下患者张三的历史病历",
+        thread_id="thread-clinician-1",
+    )
+
+    assert result.message == "临床回复"
+    assert captured["channel"] == "clinician"
+    assert "query_patient_medical_records" in {tool.name for tool in captured["tools"]}
+    assert "医生工作助手" in captured["system_prompt"]
 
 
 class FakeStreamGraph:

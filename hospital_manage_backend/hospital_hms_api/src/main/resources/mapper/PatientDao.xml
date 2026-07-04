@@ -137,6 +137,133 @@
         ORDER BY mr.create_time DESC
     </select>
 
+    <select id="selectPatientMedicalRecords" resultType="java.util.HashMap">
+        SELECT
+            mrd.id AS medicalRecordId,
+            reg.id AS registrationId,
+            reg.date AS visitDate,
+            reg.slot AS slot,
+            md.name AS department,
+            mds.name AS deptSubName,
+            d.name AS doctorName,
+            mrd.chief_complaint AS chiefComplaintSummary,
+            CASE
+                WHEN EXISTS (
+                    SELECT 1 FROM prescription p WHERE p.medical_record_id = mrd.id
+                ) THEN 'PRESCRIPTION_READY'
+                ELSE 'RECORD_READY'
+            END AS status
+        FROM medical_record mrd
+                 LEFT JOIN medical_registration reg ON mrd.registration_id = reg.id
+                 LEFT JOIN doctor d ON mrd.doctor_id = d.id
+                 LEFT JOIN medical_dept_sub mds ON mrd.dept_sub_id = mds.id
+                 LEFT JOIN medical_dept md ON mds.dept_id = md.id
+        WHERE mrd.patient_id = #{patientId}
+        <if test="startDate != null and startDate != ''">
+            AND reg.date &gt;= #{startDate}
+        </if>
+        <if test="endDate != null and endDate != ''">
+            AND reg.date &lt;= #{endDate}
+        </if>
+        ORDER BY reg.date DESC, reg.slot DESC, mrd.id DESC
+    </select>
+
+    <select id="selectPatientMedicalRecordDetail" resultType="java.util.HashMap">
+        SELECT
+            mrd.id AS medicalRecordId,
+            mrd.registration_id AS registrationId,
+            reg.date AS visitDate,
+            reg.slot AS slot,
+            md.name AS department,
+            mds.name AS deptSubName,
+            d.name AS doctorName,
+            mrd.chief_complaint AS chiefComplaint,
+            mrd.present_illness AS presentIllness,
+            mrd.physical_exam AS physicalExam,
+            mrd.diagnosis AS diagnosis,
+            mrd.doctor_advice AS doctorAdvice,
+            mrd.remark AS remark
+        FROM medical_record mrd
+                 LEFT JOIN medical_registration reg ON mrd.registration_id = reg.id
+                 LEFT JOIN doctor d ON mrd.doctor_id = d.id
+                 LEFT JOIN medical_dept_sub mds ON mrd.dept_sub_id = mds.id
+                 LEFT JOIN medical_dept md ON mds.dept_id = md.id
+        WHERE mrd.patient_id = #{patientId}
+          AND mrd.id = #{medicalRecordId}
+        LIMIT 1
+    </select>
+
+    <select id="selectPatientPrescriptions" resultType="java.util.HashMap">
+        SELECT
+            p.id AS prescriptionId,
+            p.medical_record_id AS medicalRecordId,
+            reg.id AS registrationId,
+            reg.date AS visitDate,
+            reg.slot AS slot,
+            md.name AS department,
+            mds.name AS deptSubName,
+            d.name AS doctorName,
+            p.type AS type,
+            p.status AS status,
+            p.create_time AS createTime
+        FROM prescription p
+                 LEFT JOIN medical_record mrd ON p.medical_record_id = mrd.id
+                 LEFT JOIN medical_registration reg ON mrd.registration_id = reg.id
+                 LEFT JOIN doctor d ON p.doctor_id = d.id
+                 LEFT JOIN medical_dept_sub mds ON mrd.dept_sub_id = mds.id
+                 LEFT JOIN medical_dept md ON mds.dept_id = md.id
+        WHERE p.patient_id = #{patientId}
+        <if test="startDate != null and startDate != ''">
+            AND reg.date &gt;= #{startDate}
+        </if>
+        <if test="endDate != null and endDate != ''">
+            AND reg.date &lt;= #{endDate}
+        </if>
+        ORDER BY reg.date DESC, reg.slot DESC, p.id DESC
+    </select>
+
+    <select id="selectPatientPrescriptionDetail" resultType="java.util.HashMap">
+        SELECT
+            p.id AS prescriptionId,
+            p.medical_record_id AS medicalRecordId,
+            p.type AS type,
+            p.status AS status,
+            p.create_time AS createTime,
+            reg.id AS registrationId,
+            reg.date AS visitDate,
+            reg.slot AS slot,
+            md.name AS department,
+            mds.name AS deptSubName,
+            d.name AS doctorName,
+            mrd.diagnosis AS diagnosis,
+            mrd.doctor_advice AS doctorAdvice
+        FROM prescription p
+                 LEFT JOIN medical_record mrd ON p.medical_record_id = mrd.id
+                 LEFT JOIN medical_registration reg ON mrd.registration_id = reg.id
+                 LEFT JOIN doctor d ON p.doctor_id = d.id
+                 LEFT JOIN medical_dept_sub mds ON mrd.dept_sub_id = mds.id
+                 LEFT JOIN medical_dept md ON mds.dept_id = md.id
+        WHERE p.patient_id = #{patientId}
+          AND p.id = #{prescriptionId}
+        LIMIT 1
+    </select>
+
+    <select id="selectPatientPrescriptionItems" resultType="java.util.HashMap">
+        SELECT
+            id AS id,
+            prescription_id AS prescriptionId,
+            drug_name AS drugName,
+            specification AS specification,
+            quantity AS quantity,
+            dosage AS dosage,
+            frequency AS frequency,
+            days AS days,
+            remark AS remark
+        FROM prescription_item
+        WHERE prescription_id = #{prescriptionId}
+        ORDER BY id ASC
+    </select>
+
     <insert id="insertPatient" parameterType="com.hospital.hms.pojo.PatientUserInfo" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO patient_user_info (uuid, name, sex, pid, tel, birthday, password, medical_history, allergy_history, family_history, insurance_type)
         VALUES (#{uuid}, #{name}, #{sex}, #{pid}, #{tel}, #{birthday}, #{password}, #{medicalHistory}, #{allergyHistory}, #{familyHistory}, #{insuranceType})

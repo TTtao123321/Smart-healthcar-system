@@ -270,3 +270,76 @@ async def test_query_doctor_schedules_falls_back_to_sub_dept_lookup_when_doctor_
     assert payload["ok"] is True
     assert fake_client.doctor_service.schedule_requests[0].dept_sub_id == 8
     assert fake_client.doctor_service.schedule_requests[0].date == date.today().isoformat()
+
+
+@pytest.mark.asyncio
+async def test_query_doctor_schedules_checks_all_matching_sub_depts_for_doctor_and_dept(
+    monkeypatch,
+):
+    class DoctorDeptScheduleService(FakeDoctorService):
+        async def schedules(self, request):
+            self.last_schedule_request = request
+            self.schedule_requests.append(request)
+            if request.dept_sub_id == 9:
+                return type(
+                    "Schedules",
+                    (),
+                    {
+                        "items": [
+                            {
+                                "doctorId": request.doctor_id,
+                                "doctorName": "王文彦",
+                                "workPlanId": 240,
+                                "maximum": 10,
+                                "slot": [True, True, False],
+                            }
+                        ]
+                    },
+                )()
+            return type("Schedules", (), {"items": []})()
+
+    class DoctorDeptHmsClient:
+        def __init__(self):
+            self.doctor_service = DoctorDeptScheduleService()
+
+    async def fake_resolve_sub_dept(hms_client, dept_name):
+        return type(
+            "ResolveResult",
+            (),
+            {
+                "error": None,
+                "found": True,
+                "items": [
+                    type("SubDept", (), {"id": 8})(),
+                    type("SubDept", (), {"id": 9})(),
+                ],
+            },
+        )()
+
+    async def fake_resolve_doctor(hms_client, doctor_name=None, dept_name=None):
+        return type(
+            "ResolveResult",
+            (),
+            {
+                "error": None,
+                "found": True,
+                "items": [
+                    type("Doctor", (), {"id": 3, "model_dump": lambda self: {"id": 3}})()
+                ],
+            },
+        )()
+
+    monkeypatch.setattr("app.tools.doctor_tools.resolve_sub_dept", fake_resolve_sub_dept)
+    monkeypatch.setattr("app.tools.doctor_tools.resolve_doctor", fake_resolve_doctor)
+    fake_client = DoctorDeptHmsClient()
+    tools = create_doctor_tools(fake_client)
+    query_doctor_schedules = next(tool for tool in tools if tool.name == "query_doctor_schedules")
+
+    result = await query_doctor_schedules.ainvoke(
+        {"doctor_name": "王文彦", "dept_name": "内科", "date": "2026-07-01"}
+    )
+
+    payload = json.loads(result)
+    assert payload["ok"] is True
+    assert [request.dept_sub_id for request in fake_client.doctor_service.schedule_requests] == [8, 9]
+    assert payload["data"][0]["workPlanId"] == 240

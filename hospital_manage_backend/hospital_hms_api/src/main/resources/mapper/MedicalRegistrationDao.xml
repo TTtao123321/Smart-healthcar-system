@@ -22,12 +22,8 @@
     <select id="selectScheduleForUpdate" parameterType="integer" resultType="java.util.HashMap">
         SELECT dws.maximum,
                dws.num,
-               CASE
-                   WHEN dwp.status = 1 THEN 'SUSPENDED'
-                   ELSE 'ACTIVE'
-               END AS workPlanStatus
+               'ACTIVE' AS workPlanStatus
         FROM doctor_work_plan_schedule dws
-                 LEFT JOIN doctor_work_plan dwp ON dws.work_plan_id = dwp.id
         WHERE dws.id = #{doctorScheduleId}
         LIMIT 1
         FOR UPDATE

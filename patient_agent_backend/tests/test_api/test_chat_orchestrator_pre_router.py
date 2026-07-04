@@ -48,6 +48,157 @@ async def test_pre_router_routes_query_registration(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_pre_router_routes_my_prescriptions(monkeypatch):
+    import app.chat.pre_router as pre_router
+
+    set_flow_state_store(InMemoryFlowStateStore())
+    prescription_tool = FakeTool(
+        "query_my_prescriptions",
+        json.dumps(
+            {
+                "ok": True,
+                "summary": "已查询到处方记录",
+                "data": [{"prescriptionId": 18, "visitDate": "2026-06-26"}],
+            },
+            ensure_ascii=False,
+        ),
+    )
+    monkeypatch.setattr(
+        pre_router,
+        "_find_tool",
+        lambda tool_name: prescription_tool if tool_name == "query_my_prescriptions" else None,
+    )
+    session = type("Session", (), {"patient_id": 8})()
+
+    result = await pre_router.try_pre_route(
+        session=session,
+        thread_id="thread-rx-1",
+        user_message="我的处方",
+    )
+
+    assert result is not None
+    assert result.reply_type == "pre_route"
+    assert "已查询到处方记录" in result.message
+    assert prescription_tool.calls == [{}]
+
+
+@pytest.mark.asyncio
+async def test_pre_router_formats_sidebar_medical_record_detail(monkeypatch):
+    import app.chat.pre_router as pre_router
+
+    set_flow_state_store(InMemoryFlowStateStore())
+    detail_tool = FakeTool(
+        "get_medical_record_detail",
+        json.dumps(
+            {
+                "ok": True,
+                "summary": "已查询到病历详情",
+                "data": {
+                    "medicalRecordId": 8,
+                    "visitDate": "2026-06-15",
+                    "department": "皮肤病门诊",
+                    "doctorName": "王医生",
+                    "chiefComplaint": "皮疹 3 天",
+                    "diagnosisSummary": "接触性皮炎",
+                    "instructionSummary": "避免抓挠，按医嘱用药",
+                },
+            },
+            ensure_ascii=False,
+        ),
+    )
+    monkeypatch.setattr(
+        pre_router,
+        "_find_tool",
+        lambda tool_name: detail_tool if tool_name == "get_medical_record_detail" else None,
+    )
+    session = type("Session", (), {"patient_id": 8})()
+
+    result = await pre_router.try_pre_route(
+        session=session,
+        thread_id="thread-record-detail",
+        user_message=json.dumps(
+            {
+                "source": "patient_sidebar",
+                "action": "view_recent_medical_record",
+                "payload": {"medical_record_id": 8},
+            },
+            ensure_ascii=False,
+        ),
+    )
+
+    assert result is not None
+    assert "已查询到病历详情" in result.message
+    assert "就诊日期：2026-06-15" in result.message
+    assert "科室：皮肤病门诊" in result.message
+    assert "主诉：皮疹 3 天" in result.message
+    assert "诊断摘要：接触性皮炎" in result.message
+    assert "医嘱摘要：避免抓挠，按医嘱用药" in result.message
+    assert detail_tool.calls == [{"medical_record_id": 8}]
+
+
+@pytest.mark.asyncio
+async def test_pre_router_routes_sidebar_prescription_action(monkeypatch):
+    import app.chat.pre_router as pre_router
+
+    set_flow_state_store(InMemoryFlowStateStore())
+    detail_tool = FakeTool(
+        "get_prescription_detail",
+        json.dumps(
+            {
+                "ok": True,
+                "summary": "已查询到处方详情",
+                "data": {
+                    "prescriptionId": 18,
+                    "visitDate": "2026-06-15",
+                    "department": "皮肤病门诊",
+                    "doctorName": "王医生",
+                    "diagnosis": "接触性皮炎",
+                    "doctorAdvice": "外用药物，避免刺激",
+                    "items": [
+                        {
+                            "drugName": "炉甘石洗剂",
+                            "specification": "100ml",
+                            "quantity": 1,
+                            "dosage": "外用适量",
+                            "frequency": "每日2次",
+                            "days": 7,
+                        }
+                    ],
+                },
+            },
+            ensure_ascii=False,
+        ),
+    )
+    monkeypatch.setattr(
+        pre_router,
+        "_find_tool",
+        lambda tool_name: detail_tool if tool_name == "get_prescription_detail" else None,
+    )
+    session = type("Session", (), {"patient_id": 8})()
+
+    result = await pre_router.try_pre_route(
+        session=session,
+        thread_id="thread-rx-2",
+        user_message=json.dumps(
+            {
+                "source": "patient_sidebar",
+                "action": "view_recent_prescription",
+                "payload": {"prescription_id": 18},
+            },
+            ensure_ascii=False,
+        ),
+    )
+
+    assert result is not None
+    assert "已查询到处方详情" in result.message
+    assert "诊断：接触性皮炎" in result.message
+    assert "医嘱：外用药物，避免刺激" in result.message
+    assert "炉甘石洗剂" in result.message
+    assert "外用适量" in result.message
+    assert detail_tool.calls == [{"prescription_id": 18}]
+
+
+@pytest.mark.asyncio
 async def test_pre_router_routes_cancel_registration(monkeypatch):
     import app.chat.pre_router as pre_router
 

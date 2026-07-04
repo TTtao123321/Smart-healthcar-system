@@ -25,7 +25,14 @@ class StubProfileService:
 class StubRegistrationService:
     async def query_recent(self, patient_id: int, limit: int = 3):
         return [
-            {"registrationId": 9, "date": "2026-06-18", "deptSubName": "呼吸内科", "doctorName": "李芳"},
+            {
+                "registrationId": 9,
+                "date": "2026-06-18",
+                "deptSubName": "呼吸内科",
+                "doctorName": "李芳",
+                "medicalRecordId": 301,
+                "hasPrescription": True,
+            },
         ]
 
 
@@ -72,6 +79,8 @@ async def test_get_sidebar_aggregates_profile_visits_and_schedule():
 
     assert result.profile.patientId == "123"
     assert result.recentVisits[0].doctorName == "李芳"
+    assert result.recentVisits[0].hasMedicalRecord is True
+    assert result.recentVisits[0].hasPrescription is True
     assert result.schedule.departments[0].departmentName == "内科"
 
 

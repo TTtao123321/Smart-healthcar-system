@@ -93,8 +93,64 @@ class RegistrationService:
 
         result = data.get("result", data)
         registrations = result.get("registrations", [])
+        await self._enrich_result_status(patient_id, registrations)
         registrations.sort(key=lambda item: item.get("date", ""), reverse=True)
-        return registrations[:limit]
+        selected = registrations[:limit]
+        if not any(self._has_visit_result(item) for item in selected):
+            result_ready_visit = next(
+                (item for item in registrations[limit:] if self._has_visit_result(item)),
+                None,
+            )
+            if result_ready_visit is not None and selected:
+                selected = [*selected[:-1], result_ready_visit]
+        return selected
+
+    async def _enrich_result_status(self, patient_id: int, registrations: list[dict]) -> None:
+        registration_by_id = {
+            item.get("registrationId", item.get("id")): item
+            for item in registrations
+            if item.get("registrationId", item.get("id")) is not None
+        }
+        if not registration_by_id:
+            return
+
+        try:
+            records_data = await self._client.post(
+                "/patient/medical-records",
+                json={"patientId": patient_id},
+            )
+            records = records_data.get("result", records_data)
+            for record in records if isinstance(records, list) else []:
+                registration = registration_by_id.get(record.get("registrationId"))
+                if registration is None:
+                    continue
+                registration["medicalRecordId"] = record.get("medicalRecordId")
+                registration["latestResultStatus"] = record.get("status") or "RECORD_READY"
+        except Exception:
+            logger.debug("Failed to enrich recent visits with medical records", exc_info=True)
+
+        try:
+            prescriptions_data = await self._client.post(
+                "/patient/prescriptions",
+                json={"patientId": patient_id},
+            )
+            prescriptions = prescriptions_data.get("result", prescriptions_data)
+            for prescription in prescriptions if isinstance(prescriptions, list) else []:
+                registration = registration_by_id.get(prescription.get("registrationId"))
+                if registration is None:
+                    continue
+                registration["hasPrescription"] = True
+                registration["prescriptionId"] = prescription.get("prescriptionId")
+                registration["medicalRecordId"] = (
+                    registration.get("medicalRecordId") or prescription.get("medicalRecordId")
+                )
+                registration["latestResultStatus"] = "PRESCRIPTION_READY"
+        except Exception:
+            logger.debug("Failed to enrich recent visits with prescriptions", exc_info=True)
+
+    @staticmethod
+    def _has_visit_result(item: dict) -> bool:
+        return bool(item.get("medicalRecordId") or item.get("prescriptionId") or item.get("hasPrescription"))
 
     async def cancel(self, request: RegistrationCancelRequest) -> RegistrationCancelResponse:
         """取消挂号

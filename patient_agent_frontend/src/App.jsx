@@ -700,7 +700,7 @@ function LeftPanel({ threads, currentThreadId, onNewChat, onSwitchThread, onDele
                 <MessageCircle size={14} />
               </div>
               <div className="chat-item-content">
-                <div className="chat-item-title" data-testid="thread-title">{t.title}</div>
+                <div className="chat-item-title">{t.title}</div>
               </div>
               <span className="chat-item-time">{formatShortTime(t.time)}</span>
               <button
@@ -975,10 +975,7 @@ function ChatBubble({ msg, isStreaming, isLast }) {
         {isAI && msg.toolCalls && msg.toolCalls.length > 0 && (
           <ToolCallBar toolCalls={msg.toolCalls} />
         )}
-        <div
-          className={`bubble ${isAI ? 'bubble-ai' : 'bubble-user'}`}
-          data-testid={isAI ? 'ai-message' : 'user-message'}
-        >
+        <div className={`bubble ${isAI ? 'bubble-ai' : 'bubble-user'}`}>
           {displayed}
           {!done && displayed && <span className="typing-cursor" />}
         </div>

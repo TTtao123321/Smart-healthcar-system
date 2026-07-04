@@ -131,6 +131,7 @@ export default {
 			quickHints: ['查询心内科诊室', '查找张医生的出诊信息', '查询患者李明的记录', '门诊日程安排'],
 			conversations: [
 				{
+					id: `conv-${Date.now()}`,
 					title: '院内查询',
 					time: '刚刚',
 					messages: [
@@ -183,14 +184,35 @@ export default {
 
 			this.$nextTick(() => this.scrollToBottom());
 
-			setTimeout(() => {
+			const fallbackTimer = setTimeout(() => {
+				if (!this.isTyping) return;
 				conv.messages.push({
 					role: 'assistant',
-					content: '正在为您查询相关信息，请稍候……如需更详细的数据，建议您前往对应管理模块查看。'
+					content: '医护助手暂时无法连接，请稍后再试。'
 				});
 				this.isTyping = false;
 				this.$nextTick(() => this.scrollToBottom());
-			}, 1200);
+			}, 30000);
+			this.$http('/clinician-assistant/chat', 'POST', {
+				message: text,
+				threadId: conv.id || `conv-${this.activeConvIndex}`
+			}, true, (resp) => {
+				clearTimeout(fallbackTimer);
+				const result = resp.result || {};
+				conv.messages.push({
+					role: 'assistant',
+					content: result.message || '医护助手暂时没有返回内容，请稍后再试。'
+				});
+				this.updateConversationMeta(conv, text);
+				this.isTyping = false;
+				this.$nextTick(() => this.scrollToBottom());
+			});
+		},
+		updateConversationMeta(conv, text) {
+			if (conv.title === '新对话' || conv.title === '院内查询') {
+				conv.title = text.length > 12 ? `${text.slice(0, 12)}...` : text;
+			}
+			conv.time = '刚刚';
 		},
 		switchConversation(index) {
 			this.activeConvIndex = index;
@@ -212,6 +234,7 @@ export default {
 		},
 		newConversation() {
 			this.conversations.unshift({
+				id: `conv-${Date.now()}`,
 				title: '新对话',
 				time: '刚刚',
 				messages: [
